@@ -166,23 +166,87 @@ This method gives you the most control.
     cd followarr
     ```
 
-2.  **Download Files:**
-    ```bash
-    # Download docker-compose.yml
-    curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docker-compose.yml
-    
-    # Download sample environment file
-    curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/.env.example
-    ```
+2.  **Create `docker-compose.yml`:**
+    Create a file named `docker-compose.yml` in the `followarr` directory and paste the following content:
+    <details>
+    <summary>Click to expand docker-compose.yml</summary>
 
-3.  **Configure Environment:**
-    ```bash
-    # Copy the example file to .env
-    cp .env.example .env
-    
-    # Edit .env with your actual settings (BOT TOKEN, TVDB KEY, etc.)
-    nano .env  # Or use your preferred text editor
+    ```yaml
+    version: '3.8'
+
+    services:
+      followarr:
+        image: ghcr.io/d3v1l1989/followarr:edge
+        container_name: followarr
+        restart: unless-stopped
+        environment:
+          - TZ=${TZ:-UTC}
+        env_file:
+          - .env
+        volumes:
+          - ./data:/app/data
+          - ./logs:/app/logs
+        ports:
+          - "${WEBHOOK_SERVER_PORT:-3000}:3000"
+        user: "${UID:-1000}:${GID:-1000}"
+        healthcheck:
+          test: ["CMD", "curl", "-f", "http://localhost:${WEBHOOK_SERVER_PORT:-3000}/health"]
+          interval: 30s
+          timeout: 10s
+          retries: 3
+          start_period: 10s
+        logging:
+          driver: "json-file"
+          options:
+            max-size: "10m"
+            max-file: "3"
+        networks:
+          - followarr-net
+
+    networks:
+      followarr-net:
+        driver: bridge
+
+    volumes:
+      data:
+        driver: local
+      logs:
+        driver: local
     ```
+    </details>
+
+3.  **Create and Configure `.env` File:**
+    Create a file named `.env` in the `followarr` directory and paste the following content. **Then, edit this file with your actual settings (BOT TOKEN, TVDB KEY, etc.).**
+    <details>
+    <summary>Click to expand .env content</summary>
+
+    ```env
+    # Discord Bot Configuration
+    DISCORD_BOT_TOKEN=YourDiscordBotToken
+    DISCORD_CHANNEL_ID=YourDiscordChannelId
+
+    # TVDB API Configuration
+    TVDB_API_KEY=YourTVDBApiKey
+
+    # Tautulli Configuration
+    TAUTULLI_URL=http://your-tautulli-server:8181
+    TAUTULLI_API_KEY=YourTautulliApiKey
+
+    # Database Configuration
+    DATABASE_URL=sqlite:///data/followarr.db
+
+    # Webhook Server Configuration
+    WEBHOOK_SERVER_PORT=3000
+
+    # Logging Configuration
+    LOG_LEVEL=INFO  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+    # Docker Configuration
+    TZ=UTC  # Set your timezone (e.g., Europe/Belgrade)
+    UID=1000  # Your user ID (run 'id -u' to get it)
+    GID=1000  # Your group ID (run 'id -g' to get it)
+    ```
+    </details>
     *This is a crucial step! Fill in all required variables.* 
 
 4.  **Start Followarr:**
@@ -191,7 +255,7 @@ This method gives you the most control.
     ```
     This will pull the `ghcr.io/d3v1l1989/followarr:edge` image (latest development build) and start the container.
 
-5.  **(Optional) Use a Specific Version:** To use a stable release, edit `docker-compose.yml` and change the image tag from `:edge` to a specific version, like `:v1.0.0` before running `docker compose up -d`.
+5.  **(Optional) Use a Specific Version:** To use a stable release, edit `docker-compose.yml` (the file you created in Step 2) and change the image tag from `:edge` to a specific version, like `:v1.0.0`, before running `docker compose up -d`.
 
 6.  **Check Logs:**
     ```bash
@@ -209,7 +273,7 @@ This method gives you the most control.
 
 ### Quick Install with Scripts (Optional)
 
-These scripts automate the download steps (Step 2 & part of Step 3 above). You will still need to manually edit the `.env` file.
+These scripts automate the creation of the `docker-compose.yml` and `.env` files shown above. You will still need to manually edit the `.env` file with your specific settings.
 
 #### Linux/macOS
 ```bash
