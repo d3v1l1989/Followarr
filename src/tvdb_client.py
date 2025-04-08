@@ -243,84 +243,52 @@ class TVDBClient:
             return None
 
     async def get_upcoming_episodes(self, show_id: int) -> List[Dict]:
-        """Get upcoming episodes for a show"""
-        try:
-            logger.info(f"Getting upcoming episodes for show ID: {show_id}")
-            response = await self._make_request(f"series/{show_id}/extended")
-            
-            if not response:
-                logger.warning(f"No response for show {show_id}")
-                return []
-            
-            if "data" not in response:
-                logger.warning(f"No data in response for show {show_id}")
-                logger.debug(f"Response keys: {response.keys()}")
-                return []
+        """Get upcoming episodes for a show."""
+        logger.info(f"Getting upcoming episodes for show ID: {show_id}")
+        
+        # First get the show details to verify it exists
+        show_data = await self._make_request(f"series/{show_id}/extended")
+        if not show_data:
+            logger.error(f"Could not find show with ID {show_id}")
+            return []
 
-            data = response["data"]
-            logger.debug(f"Show data keys: {data.keys()}")
-            
-            # Try to get episodes from different possible locations in the response
-            episodes = []
-            if "episodes" in data:
-                episodes = data["episodes"]
-                logger.info(f"Found {len(episodes)} episodes under 'episodes' key")
-            elif "episode" in data:
-                episodes = data["episode"]
-                logger.info(f"Found {len(episodes)} episodes under 'episode' key")
-            
-            if not episodes:
-                logger.warning(f"No episodes found in response for show {show_id}")
-                return []
-            
-            # Get current date in YYYY-MM-DD format
-            today = datetime.now().strftime("%Y-%m-%d")
-            logger.info(f"Filtering episodes after {today}")
-            
-            # Filter for upcoming episodes
-            upcoming = []
-            for ep in episodes:
-                if not isinstance(ep, dict):
-                    logger.warning(f"Skipping invalid episode data: {ep}")
-                    continue
-                
-                # Try different date fields
-                air_date = None
-                for date_field in ['aired', 'firstAired', 'airDate', 'broadcast']:
-                    if ep.get(date_field):
-                        air_date = ep[date_field]
-                        logger.debug(f"Found air date in field '{date_field}': {air_date}")
-                        break
-                
-                if not air_date:
-                    logger.debug(f"No air date found for episode: {ep.get('name', 'Unknown')}")
+        # Make a separate request for episodes
+        episodes_data = await self._make_request(f"series/{show_id}/episodes/default")
+        if not episodes_data or 'episodes' not in episodes_data:
+            logger.error(f"No episodes data found for show {show_id}")
+            return []
+
+        episodes = episodes_data.get('episodes', [])
+        logger.info(f"Found {len(episodes)} total episodes")
+
+        # Get current date for filtering
+        current_date = datetime.now().date()
+        
+        # Filter for upcoming episodes
+        upcoming = []
+        for episode in episodes:
+            try:
+                air_date_str = episode.get('aired')
+                if not air_date_str:
                     continue
                     
-                if air_date >= today:
-                    episode_data = {
-                        'id': ep.get('id'),
-                        'name': ep.get('name', 'Unknown'),
-                        'overview': ep.get('overview'),
-                        'season': ep.get('seasonNumber') or ep.get('season'),
-                        'episode': ep.get('number') or ep.get('episodeNumber') or ep.get('episode'),
-                        'air_date': air_date,
-                        'runtime': ep.get('runtime'),
-                        'image': ep.get('image'),
-                        'show_name': data.get('name', 'Unknown Show')
-                    }
-                    upcoming.append(episode_data)
-                    logger.info(
-                        f"Added upcoming episode: S{episode_data['season']}E{episode_data['episode']} - "
-                        f"{episode_data['name']} ({episode_data['air_date']})"
-                    )
-            
-            # Sort by air date
-            upcoming.sort(key=lambda x: x['air_date'])
-            
-            logger.info(f"Found {len(upcoming)} upcoming episodes for show {show_id}")
-            return upcoming
-            
-        except Exception as e:
-            logger.error(f"Error getting upcoming episodes for show {show_id}: {str(e)}")
-            logger.error(traceback.format_exc())
-            return [] 
+                air_date = datetime.strptime(air_date_str, '%Y-%m-%d').date()
+                
+                # Only include episodes that air today or in the future
+                if air_date >= current_date:
+                    logger.debug(f"Found upcoming episode: S{episode.get('seasonNumber', 0):02d}E{episode.get('number', 0):02d} - {episode.get('name', 'Unknown')} ({air_date_str})")
+                    upcoming.append({
+                        'air_date': air_date_str,
+                        'season': episode.get('seasonNumber', 0),
+                        'episode': episode.get('number', 0),
+                        'name': episode.get('name', 'Unknown'),
+                        'overview': episode.get('overview', '')
+                    })
+            except (ValueError, TypeError) as e:
+                logger.error(f"Error processing episode: {e}")
+                continue
+
+        # Sort by air date
+        upcoming.sort(key=lambda x: x['air_date'])
+        logger.info(f"Found {len(upcoming)} upcoming episodes")
+        return upcoming 
