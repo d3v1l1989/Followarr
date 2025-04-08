@@ -3,27 +3,29 @@
 
 set -e
 
-echo -e "\033[36m🚀 Followarr Installation Script\033[0m"
-echo -e "\033[36m================================\033[0m\n"
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${GREEN}Starting Followarr installation...${NC}"
 
 # Check if Docker is installed
 if ! command -v docker &> /dev/null; then
-    echo -e "\033[31m❌ Docker is not installed. Please install Docker first.\033[0m"
-    echo -e "\033[33mVisit https://docs.docker.com/get-docker/ for installation instructions.\033[0m"
+    echo -e "${RED}Error: Docker is not installed.${NC}"
+    echo "Please install Docker first: https://docs.docker.com/get-docker/"
     exit 1
 fi
 
-# Check for Docker Compose (both formats)
-DOCKER_COMPOSE_CMD=""
-if docker compose version &> /dev/null; then
-    DOCKER_COMPOSE_CMD="docker compose"
-    echo -e "\033[32m✅ Using Docker Compose V2 (docker compose)\033[0m"
-elif command -v docker-compose &> /dev/null; then
+# Check for docker-compose or docker compose
+if command -v docker-compose &> /dev/null; then
     DOCKER_COMPOSE_CMD="docker-compose"
-    echo -e "\033[32m✅ Using Docker Compose V1 (docker-compose)\033[0m"
+elif docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
 else
-    echo -e "\033[31m❌ Docker Compose is not installed. Please install Docker Compose first.\033[0m"
-    echo -e "\033[33mVisit https://docs.docker.com/compose/install/ for installation instructions.\033[0m"
+    echo -e "${RED}Error: Neither docker-compose nor docker compose is available.${NC}"
+    echo "Please install Docker Compose: https://docs.docker.com/compose/install/"
     exit 1
 fi
 
@@ -33,54 +35,52 @@ echo -e "\n\033[32m✅ Docker and Docker Compose are installed\033[0m\n"
 echo -e "\033[36m📁 Creating directories...\033[0m"
 mkdir -p data logs config
 
-# Handle .env file
-ENV_EDITED=false
+# Create .env file if it doesn't exist
 if [ ! -f .env ]; then
-    echo -e "\033[36m📝 Creating .env file from template...\033[0m"
+    echo -e "${YELLOW}Creating .env file...${NC}"
     cp .env.example .env
-    echo -e "\033[33m⚠️  Please edit the .env file with your configuration\033[0m"
-    read -p "   Would you like to edit the .env file now? (y/n) " -n 1 -r
+    echo -e "${YELLOW}Please edit the .env file with your configuration.${NC}"
+    echo -e "${YELLOW}You can do this now or later by editing the .env file.${NC}"
+    echo -e "${YELLOW}Required variables:${NC}"
+    echo -e "  - DISCORD_BOT_TOKEN: Your Discord bot token"
+    echo -e "  - DISCORD_CHANNEL_ID: Your Discord channel ID"
+    echo -e "  - TVDB_API_KEY: Your TVDB API key"
+    echo -e "  - TAUTULLI_URL: Your Tautulli server URL"
+    echo -e "  - TAUTULLI_API_KEY: Your Tautulli API key"
+    
+    # Ask if user wants to edit .env now
+    read -p "Do you want to edit the .env file now? (y/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         if command -v nano &> /dev/null; then
             nano .env
+        elif command -v vim &> /dev/null; then
+            vim .env
         else
-            vi .env
+            echo -e "${YELLOW}No text editor found. Please edit .env manually.${NC}"
         fi
-        ENV_EDITED=true
-    fi
-else
-    echo -e "\033[32m✅ .env file already exists\033[0m"
-    # Check if .env is using default values
-    if grep -q "your_discord_bot_token_here" .env || grep -q "your_tvdb_api_key_here" .env; then
-        echo -e "\033[33m⚠️  Your .env file contains default values that need to be updated\033[0m"
-        read -p "   Would you like to edit the .env file now? (y/n) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            if command -v nano &> /dev/null; then
-                nano .env
-            else
-                vi .env
-            fi
-            ENV_EDITED=true
-        fi
+    else
+        echo -e "${YELLOW}You can edit the .env file later.${NC}"
+        echo -e "${YELLOW}The bot will check for required variables when it starts.${NC}"
     fi
 fi
 
-# Only proceed with Docker operations if .env is properly configured
-if [ "$ENV_EDITED" = true ] || (! grep -q "your_discord_bot_token_here" .env && ! grep -q "your_tvdb_api_key_here" .env); then
-    echo -e "\n\033[36m🐳 Building Docker image (no cache)...\033[0m"
-    $DOCKER_COMPOSE_CMD build --no-cache
+# Pull the latest image
+echo -e "${GREEN}Pulling latest Followarr image...${NC}"
+$DOCKER_COMPOSE_CMD pull
 
-    echo -e "\033[36m🚀 Starting Followarr...\033[0m"
-    $DOCKER_COMPOSE_CMD up -d
+# Start the container
+echo -e "${GREEN}Starting Followarr...${NC}"
+$DOCKER_COMPOSE_CMD up -d
 
-    echo -e "\n\033[32m✅ Installation complete!\033[0m"
-    echo -e "\033[36m📝 Check the logs with: $DOCKER_COMPOSE_CMD logs -f\033[0m"
-    echo -e "\033[36m🛑 Stop the bot with: $DOCKER_COMPOSE_CMD down\033[0m"
-    echo -e "\n\033[33m🔧 Don't forget to configure your Tautulli webhook!\033[0m"
-    echo -e "\033[33m   URL: http://followarr:3000/webhook/tautulli\033[0m"
-else
-    echo -e "\n\033[31m❌ Installation aborted. Please configure your .env file before proceeding.\033[0m"
-    exit 1
-fi 
+echo -e "${GREEN}Installation complete!${NC}"
+echo -e "${YELLOW}If you haven't configured your .env file yet, please do so now.${NC}"
+echo -e "${YELLOW}You can edit the .env file and then restart the bot with:${NC}"
+echo -e "  $DOCKER_COMPOSE_CMD restart"
+echo -e "${YELLOW}To view the logs:${NC}"
+echo -e "  $DOCKER_COMPOSE_CMD logs -f"
+echo -e "${YELLOW}To stop the bot:${NC}"
+echo -e "  $DOCKER_COMPOSE_CMD down"
+
+echo -e "\n\033[33m🔧 Don't forget to configure your Tautulli webhook!\033[0m"
+echo -e "\033[33m   URL: http://followarr:3000/webhook/tautulli\033[0m" 

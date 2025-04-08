@@ -1,80 +1,71 @@
-# Followarr Installation Script for Windows
-Write-Host "🚀 Followarr Installation Script" -ForegroundColor Cyan
-Write-Host "================================`n"
+# Colors for output
+$Red = [System.ConsoleColor]::Red
+$Green = [System.ConsoleColor]::Green
+$Yellow = [System.ConsoleColor]::Yellow
+
+Write-Host "Starting Followarr installation..." -ForegroundColor $Green
 
 # Check if Docker is installed
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    Write-Host "❌ Docker is not installed. Please install Docker first." -ForegroundColor Red
-    Write-Host "Visit https://docs.docker.com/get-docker/ for installation instructions." -ForegroundColor Yellow
+    Write-Host "Error: Docker is not installed." -ForegroundColor $Red
+    Write-Host "Please install Docker first: https://docs.docker.com/get-docker/"
     exit 1
 }
 
-# Check for Docker Compose (both formats)
-$dockerComposeCmd = $null
-try {
-    # First try docker compose subcommand
-    $null = docker compose version 2>&1
-    $dockerComposeCmd = "docker compose"
-    Write-Host "✅ Using Docker Compose V2 (docker compose)" -ForegroundColor Green
-} catch {
-    try {
-        # Then try docker-compose command
-        $null = docker-compose --version 2>&1
-        $dockerComposeCmd = "docker-compose"
-        Write-Host "✅ Using Docker Compose V1 (docker-compose)" -ForegroundColor Green
-    } catch {
-        Write-Host "❌ Docker Compose is not installed. Please install Docker Compose first." -ForegroundColor Red
-        Write-Host "Visit https://docs.docker.com/compose/install/ for installation instructions." -ForegroundColor Yellow
-        exit 1
-    }
+# Check for docker-compose or docker compose
+$DOCKER_COMPOSE_CMD = ""
+if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
+    $DOCKER_COMPOSE_CMD = "docker-compose"
+} elseif (docker compose version 2>$null) {
+    $DOCKER_COMPOSE_CMD = "docker compose"
+} else {
+    Write-Host "Error: Neither docker-compose nor docker compose is available." -ForegroundColor $Red
+    Write-Host "Please install Docker Compose: https://docs.docker.com/compose/install/"
+    exit 1
 }
-
-Write-Host "`n✅ Docker and Docker Compose are installed`n" -ForegroundColor Green
 
 # Create necessary directories
-Write-Host "📁 Creating directories..." -ForegroundColor Cyan
-New-Item -ItemType Directory -Force -Path data, logs, config | Out-Null
+New-Item -ItemType Directory -Force -Path data, logs | Out-Null
 
-# Handle .env file
-$envEdited = $false
+# Create .env file if it doesn't exist
 if (-not (Test-Path .env)) {
-    Write-Host "📝 Creating .env file from template..." -ForegroundColor Cyan
+    Write-Host "Creating .env file..." -ForegroundColor $Yellow
     Copy-Item .env.example .env
-    Write-Host "⚠️  Please edit the .env file with your configuration" -ForegroundColor Yellow
-    $editNow = Read-Host "   Would you like to edit the .env file now? (y/n)"
-    if ($editNow -eq 'y') {
+    Write-Host "Please edit the .env file with your configuration." -ForegroundColor $Yellow
+    Write-Host "You can do this now or later by editing the .env file." -ForegroundColor $Yellow
+    Write-Host "Required variables:" -ForegroundColor $Yellow
+    Write-Host "  - DISCORD_BOT_TOKEN: Your Discord bot token"
+    Write-Host "  - DISCORD_CHANNEL_ID: Your Discord channel ID"
+    Write-Host "  - TVDB_API_KEY: Your TVDB API key"
+    Write-Host "  - TAUTULLI_URL: Your Tautulli server URL"
+    Write-Host "  - TAUTULLI_API_KEY: Your Tautulli API key"
+    
+    # Ask if user wants to edit .env now
+    $response = Read-Host "Do you want to edit the .env file now? (y/n)"
+    if ($response -eq 'y') {
         notepad .env
-        $envEdited = $true
-    }
-} else {
-    Write-Host "✅ .env file already exists" -ForegroundColor Green
-    # Check if .env is using default values
-    $envContent = Get-Content .env -Raw
-    if ($envContent -match "your_discord_bot_token_here" -or $envContent -match "your_tvdb_api_key_here") {
-        Write-Host "⚠️  Your .env file contains default values that need to be updated" -ForegroundColor Yellow
-        $editNow = Read-Host "   Would you like to edit the .env file now? (y/n)"
-        if ($editNow -eq 'y') {
-            notepad .env
-            $envEdited = $true
-        }
+    } else {
+        Write-Host "You can edit the .env file later." -ForegroundColor $Yellow
+        Write-Host "The bot will check for required variables when it starts." -ForegroundColor $Yellow
     }
 }
 
-# Only proceed with Docker operations if .env is properly configured
-$envContent = Get-Content .env -Raw
-if ($envEdited -or (-not ($envContent -match "your_discord_bot_token_here") -and -not ($envContent -match "your_tvdb_api_key_here"))) {
-    Write-Host "`n🐳 Building Docker image (no cache)..." -ForegroundColor Cyan
-    Invoke-Expression "$dockerComposeCmd build --no-cache"
+# Pull the latest image
+Write-Host "Pulling latest Followarr image..." -ForegroundColor $Green
+Invoke-Expression "$DOCKER_COMPOSE_CMD pull"
 
-    Write-Host "🚀 Starting Followarr..." -ForegroundColor Cyan
-    Invoke-Expression "$dockerComposeCmd up -d"
+# Start the container
+Write-Host "Starting Followarr..." -ForegroundColor $Green
+Invoke-Expression "$DOCKER_COMPOSE_CMD up -d"
 
-    Write-Host "`n✅ Installation complete!" -ForegroundColor Green
-    Write-Host "📝 Check the logs with: $dockerComposeCmd logs -f" -ForegroundColor Cyan
-    Write-Host "🛑 Stop the bot with: $dockerComposeCmd down" -ForegroundColor Cyan
-    Write-Host "`n🔧 Don't forget to configure your Tautulli webhook!" -ForegroundColor Yellow
-    Write-Host "   URL: http://followarr:3000/webhook/tautulli" -ForegroundColor Yellow
-} else {
-    Write-Host "`n❌ Installation aborted. Please configure your .env file before proceeding." -ForegroundColor Red
-    exit 1
-} 
+Write-Host "Installation complete!" -ForegroundColor $Green
+Write-Host "If you haven't configured your .env file yet, please do so now." -ForegroundColor $Yellow
+Write-Host "You can edit the .env file and then restart the bot with:" -ForegroundColor $Yellow
+Write-Host "  $DOCKER_COMPOSE_CMD restart"
+Write-Host "To view the logs:" -ForegroundColor $Yellow
+Write-Host "  $DOCKER_COMPOSE_CMD logs -f"
+Write-Host "To stop the bot:" -ForegroundColor $Yellow
+Write-Host "  $DOCKER_COMPOSE_CMD down"
+
+Write-Host "`nDon't forget to configure your Tautulli webhook!" -ForegroundColor $Yellow
+Write-Host "  URL: http://followarr:3000/webhook/tautulli" -ForegroundColor $Yellow 
