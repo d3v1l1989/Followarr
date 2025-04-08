@@ -1,9 +1,31 @@
 import aiohttp
 import os
 import logging
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
+from dataclasses import dataclass
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
+
+@dataclass
+class TVShow:
+    id: int
+    name: str
+    overview: Optional[str] = None
+    status: Optional[Dict[str, Any]] = None
+    first_aired: Optional[str] = None
+    network: Optional[Dict[str, Any]] = None
+    image_url: Optional[str] = None
+    image: Optional[str] = None
+
+    def __post_init__(self):
+        # Convert string ID to int if necessary
+        if isinstance(self.id, str):
+            self.id = int(self.id)
+        
+        # Handle image URL
+        if not self.image_url and self.image:
+            self.image_url = f"https://artworks.thetvdb.com{self.image}"
 
 class TVDBClient:
     def __init__(self, api_key: str):
