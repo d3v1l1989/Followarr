@@ -135,6 +135,46 @@ class FollowarrBot(commands.Bot):
                 logger.error(f"Error in list command: {str(e)}", exc_info=True)
                 await interaction.followup.send("An error occurred while processing your request. Please try again later.")
 
+        @self.tree.command(name="unfollow", description="Unfollow a TV show")
+        @app_commands.describe(show_name="The name of the show you want to unfollow")
+        async def unfollow(interaction: discord.Interaction, show_name: str):
+            try:
+                await interaction.response.defer()
+                
+                logger.info(f"User {interaction.user.name} ({interaction.user.id}) trying to unfollow show: {show_name}")
+                
+                # Search for show first
+                show = await self.tvdb_client.search_show(show_name)
+                
+                if not show:
+                    logger.warning(f"No show found for query: {show_name}")
+                    await interaction.followup.send(f"Could not find show: {show_name}")
+                    return
+
+                logger.info(f"Found show to unfollow: {show['seriesName']} (ID: {show['id']})")
+
+                # Remove from database
+                success = self.db.remove_subscription(
+                    str(interaction.user.id),
+                    show['id']
+                )
+                
+                if success:
+                    logger.info(f"Successfully removed subscription for {interaction.user.name} from {show['seriesName']}")
+                    embed = discord.Embed(
+                        title="Show Unfollowed",
+                        description=f"You are no longer following: {show['seriesName']}",
+                        color=discord.Color.red()
+                    )
+                    await interaction.followup.send(embed=embed)
+                else:
+                    logger.info(f"User {interaction.user.name} wasn't following {show['seriesName']}")
+                    await interaction.followup.send(f"You weren't following: {show['seriesName']}")
+                    
+            except Exception as e:
+                logger.error(f"Error in unfollow command: {str(e)}", exc_info=True)
+                await interaction.followup.send("An error occurred while processing your request. Please try again later.")
+
     async def setup_hook(self):
         try:
             logger.info("Initializing database...")
