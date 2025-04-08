@@ -244,22 +244,28 @@ class TVDBClient:
 
     async def get_upcoming_episodes(self, show_id: int) -> List[Dict]:
         """Get upcoming episodes for a show."""
-        logger.info(f"Getting upcoming episodes for show ID: {show_id}")
+        logger.info(f"Fetching upcoming episodes for show {show_id}")
         
-        # First get the show details to verify it exists
         show_data = await self._make_request(f"series/{show_id}/extended")
         if not show_data:
             logger.error(f"Could not find show with ID {show_id}")
             return []
 
-        # Make a separate request for episodes
-        episodes_data = await self._make_request(f"series/{show_id}/episodes/default")
-        if not episodes_data or 'episodes' not in episodes_data:
+        # Make a separate request for episodes using the official endpoint
+        episodes_data = await self._make_request(f"series/{show_id}/episodes/official")
+        if not episodes_data:
             logger.error(f"No episodes data found for show {show_id}")
             return []
 
+        # Log the structure of the response
+        logger.debug(f"Episodes data structure: {list(episodes_data.keys())}")
+        
         episodes = episodes_data.get('episodes', [])
         logger.info(f"Found {len(episodes)} total episodes")
+        
+        if not episodes:
+            logger.debug(f"Raw episodes data: {episodes_data}")
+            return []
 
         # Get current date for filtering
         current_date = datetime.now().date()
@@ -268,27 +274,46 @@ class TVDBClient:
         upcoming = []
         for episode in episodes:
             try:
-                air_date_str = episode.get('aired')
+                # Try different possible date fields
+                air_date_str = episode.get('aired') or episode.get('firstAired') or episode.get('airDate')
                 if not air_date_str:
                     continue
-                    
-                air_date = datetime.strptime(air_date_str, '%Y-%m-%d').date()
+                
+                # Handle different date formats
+                try:
+                    air_date = datetime.strptime(air_date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    try:
+                        # Try parsing with time included
+                        air_date = datetime.strptime(air_date_str.split('T')[0], '%Y-%m-%d').date()
+                    except ValueError:
+                        logger.warning(f"Could not parse air date: {air_date_str}")
+                        continue
                 
                 # Only include episodes that air today or in the future
                 if air_date >= current_date:
-                    logger.debug(f"Found upcoming episode: S{episode.get('seasonNumber', 0):02d}E{episode.get('number', 0):02d} - {episode.get('name', 'Unknown')} ({air_date_str})")
-                    upcoming.append({
+                    episode_info = {
                         'air_date': air_date_str,
                         'season': episode.get('seasonNumber', 0),
                         'episode': episode.get('number', 0),
                         'name': episode.get('name', 'Unknown'),
                         'overview': episode.get('overview', '')
-                    })
+                    }
+                    logger.debug(f"Found upcoming episode: S{episode_info['season']:02d}E{episode_info['episode']:02d} - {episode_info['name']} ({air_date_str})")
+                    upcoming.append(episode_info)
             except (ValueError, TypeError) as e:
                 logger.error(f"Error processing episode: {e}")
+                logger.debug(f"Problematic episode data: {episode}")
                 continue
 
         # Sort by air date
         upcoming.sort(key=lambda x: x['air_date'])
         logger.info(f"Found {len(upcoming)} upcoming episodes")
+        
+        # Log the first few upcoming episodes for debugging
+        if upcoming:
+            logger.debug("First few upcoming episodes:")
+            for ep in upcoming[:3]:
+                logger.debug(f"  - {ep['air_date']}: S{ep['season']:02d}E{ep['episode']:02d} - {ep['name']}")
+        
         return upcoming 
