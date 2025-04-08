@@ -333,37 +333,37 @@ class FollowarrBot(commands.Bot):
 
     async def handle_episode_notification(self, episode_data: dict):
         try:
-            # Get show details from Tautulli
-            show_info = await self.tautulli_client.get_show_info(episode_data['grandparent_rating_key'])
-            if not show_info:
-                logger.error("Could not get show info from Tautulli")
-                return
-
-            # Get TVDB show ID
-            tvdb_show = await self.tvdb_client.search_show(show_info['title'])
-            if not tvdb_show:
-                logger.error(f"Could not find show on TVDB: {show_info['title']}")
+            logger.info(f"Received notification for episode: {episode_data}")
+            
+            # Get the TVDB show ID from the payload
+            tvdb_id = episode_data.get('tvdb_id')
+            if not tvdb_id:
+                logger.error("No TVDB ID in notification payload")
                 return
 
             # Get subscribers for this show
-            subscribers = await self.db.get_show_subscribers(tvdb_show['id'])
+            subscribers = self.db.get_show_subscribers(int(tvdb_id))
             
             if not subscribers:
-                logger.info(f"No subscribers for show: {show_info['title']}")
+                logger.info(f"No subscribers for show ID: {tvdb_id}")
                 return
 
             # Create notification embed
             embed = discord.Embed(
-                title=f"🆕 New Episode Added: {show_info['title']}",
-                description="A new episode has been added to your media server!",
+                title=f"🆕 New Episode Available",
+                description=f"A new episode of **{episode_data.get('title', 'Unknown Show')}** is available!",
                 color=discord.Color.green(),
-                timestamp=discord.utils.utcnow()  # Add timestamp
+                timestamp=datetime.now()
             )
 
             # Add episode information
+            episode_title = f"S{episode_data.get('season_num', '00')}E{episode_data.get('episode_num', '00')}"
+            if episode_data.get('episode_name'):
+                episode_title += f" - {episode_data['episode_name']}"
+            
             embed.add_field(
                 name="📺 Episode",
-                value=f"S{episode_data['season_num']:02d}E{episode_data['episode_num']:02d} - {episode_data['title']}",
+                value=episode_title,
                 inline=False
             )
 
@@ -371,7 +371,7 @@ class FollowarrBot(commands.Bot):
             if episode_data.get('summary'):
                 embed.add_field(
                     name="📝 Summary",
-                    value=episode_data['summary'][:1024],  # Discord has a 1024 character limit for field values
+                    value=episode_data['summary'][:1024],  # Discord has a 1024 character limit
                     inline=False
                 )
 
@@ -383,41 +383,26 @@ class FollowarrBot(commands.Bot):
                     inline=True
                 )
 
-            # Add quality/resolution if available
-            if episode_data.get('video_resolution'):
-                embed.add_field(
-                    name="🎥 Quality",
-                    value=episode_data['video_resolution'],
-                    inline=True
-                )
-
-            # Add duration if available
-            if episode_data.get('duration'):
-                duration_min = int(episode_data['duration'] / 60)
-                embed.add_field(
-                    name="⏱️ Duration",
-                    value=f"{duration_min} minutes",
-                    inline=True
-                )
+            # Add poster if available
+            if episode_data.get('poster_url'):
+                embed.set_thumbnail(url=episode_data['poster_url'])
 
             # Add footer
             embed.set_footer(text="Followarr Notification")
 
-            # Add show image if available
-            if episode_data.get('thumb'):
-                embed.set_thumbnail(url=episode_data['thumb'])
-
-            # Send DM to each subscriber
+            # Send notification to each subscriber
             for user_id in subscribers:
                 try:
                     user = await self.fetch_user(int(user_id))
                     if user:
                         await user.send(embed=embed)
+                        logger.info(f"Sent notification to user {user_id}")
                 except Exception as e:
                     logger.error(f"Failed to send notification to user {user_id}: {str(e)}")
 
         except Exception as e:
             logger.error(f"Error handling episode notification: {str(e)}")
+            logger.error(traceback.format_exc())
 
 def main():
     try:
