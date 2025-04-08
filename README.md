@@ -106,8 +106,29 @@ GID=1000  # Your group ID
 
 1. In Tautulli, go to Settings -> Notification Agents
 2. Add a new Webhook agent
-3. Set the Webhook URL to: `http://your-server:3000/webhook/tautulli`
+3. Set the Webhook URL to: `http://followarr:3000/webhook/tautulli`
+   - If Tautulli is running in the same Docker network, use: `http://followarr:3000/webhook/tautulli`
+   - If Tautulli is running outside Docker, use your server's actual IP/hostname: `http://your-server-ip:3000/webhook/tautulli`
 4. Enable notifications for "Recently Added"
+
+## Docker Network Configuration
+
+If you're running Tautulli in Docker as well, you can add it to the same network for easier communication:
+
+```yaml
+# In your Tautulli docker-compose.yml
+services:
+  tautulli:
+    # ... other Tautulli configuration ...
+    networks:
+      - followarr-net
+
+networks:
+  followarr-net:
+    external: true
+```
+
+
 
 ## Docker Volumes
 
