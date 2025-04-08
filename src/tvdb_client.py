@@ -28,15 +28,15 @@ class TVShow:
             self.image_url = f"https://artworks.thetvdb.com{self.image}"
 
 class TVDBClient:
-    def __init__(self, api_key: str):
-        self.api_key = api_key
-        self.base_url = "https://api4.thetvdb.com/v4"
-        self._token = None
+    def __init__(self):
+        self.api_key = os.getenv('TVDB_API_KEY')
+        self.token = None
+        self.base_url = 'https://api4.thetvdb.com/v4'
         logger.info("Initialized TVDB Client")
 
     async def _get_token(self) -> str:
-        if self._token:
-            return self._token
+        if self.token:
+            return self.token
 
         logger.info("Getting new TVDB token")
         async with aiohttp.ClientSession() as session:
@@ -50,9 +50,9 @@ class TVDBClient:
                     
                     if response.status == 200:
                         data = await response.json()
-                        self._token = data["data"]["token"]
+                        self.token = data["data"]["token"]
                         logger.info("Successfully obtained TVDB token")
-                        return self._token
+                        return self.token
                     logger.error(f"Failed to get TVDB token. Status: {response.status}, Response: {response_text}")
                     raise Exception(f"Failed to get TVDB token: {response.status}")
             except Exception as e:
@@ -78,7 +78,7 @@ class TVDBClient:
                     
                     if response.status == 401:  # Token expired
                         logger.info("Token expired, getting new token")
-                        self._token = None
+                        self.token = None
                         return await self._make_request(endpoint, method, params)
                     
                     if response.status == 200:
@@ -95,29 +95,30 @@ class TVDBClient:
         logger.info(f"Searching for show: {show_name}")
         
         try:
-            results = await self._search(show_name)
+            # Use the existing search_series method
+            results = await self.search_series(show_name)
             if not results:
                 return None
             
-            # Find the best match
-            show = self._find_best_match(results, show_name)
+            # Find the best match (first result)
+            show = results[0] if results else None
             if not show:
                 return None
             
-            # Get extended details for the show
+            # Get extended details for the show using existing get_series_extended method
             show_id = show.get('tvdb_id') or show.get('id')
             if not show_id:
                 return None
-            
+                
             logger.info(f"Getting details for show: {show.get('name')}")
-            show_details = await self._get_show_details(show_id)
+            show_details = await self.get_series_extended(show_id)
             if not show_details:
                 return None
-            
+                
             # Add image URL to the show object
             if 'image_url' not in show_details and 'image' in show_details:
                 show_details['image_url'] = f"https://artworks.thetvdb.com{show_details['image']}"
-            
+                
             logger.info(f"Returning details for: {show_details.get('name')}")
             return TVShow(**show_details)
             
