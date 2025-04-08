@@ -5,7 +5,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![Discord](https://img.shields.io/badge/Discord-Bot-7289DA.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
-![Docker](https://img.shields.io/badge/Docker-Available-2496ED.svg)
+![Docker](https://img.shields.io/badge/Docker-Available_on_GHCR-2496ED.svg)
 
 A Discord bot that integrates with Tautulli to notify users about new episodes of their favorite TV shows.  
 Get notifications when new episodes are added to your media server!
@@ -65,13 +65,13 @@ Receive detailed Discord DMs when new episodes are available:
    curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docker-compose.yml
    curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/.env.example
    
-   # Download the installation script
+   # Download the installation script (optional, for guided setup)
    curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.sh  # For Linux/Mac
    # OR
    curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.ps1  # For Windows
    ```
 
-3. Make the installation script executable (Linux/Mac only):
+3. Make the installation script executable (Linux/Mac only, if downloaded):
    ```bash
    chmod +x install.sh
    ```
@@ -88,7 +88,12 @@ Receive detailed Discord DMs when new episodes are available:
    nano .env  # or use any text editor
    ```
 
-6. The bot will automatically start after installation. You can check the logs with:
+6. Start the bot:
+   ```bash
+   docker compose up -d
+   ```
+
+   You can check the logs with:
    ```bash
    docker compose logs -f
    ```
@@ -151,7 +156,7 @@ docker compose restart
 
 ### Quick Install with Docker (Recommended)
 
-The easiest way to install Followarr is using Docker. We provide installation scripts for both Linux/macOS and Windows:
+The easiest way to install Followarr is using Docker and GitHub Container Registry (ghcr.io). We provide installation scripts for both Linux/macOS and Windows:
 
 #### Linux/macOS
 ```bash
@@ -161,12 +166,16 @@ chmod +x install.sh
 ./install.sh
 ```
 
+This script uses the `ghcr.io/d3v1l1989/followarr:edge` image by default.
+
 #### Windows
 ```powershell
 # Download and run the installation script
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.ps1" -OutFile "install.ps1"
 .\install.ps1
 ```
+
+This script uses the `ghcr.io/d3v1l1989/followarr:edge` image by default.
 
 The installation script will:
 1. Check if Docker is installed
@@ -213,8 +222,10 @@ GID=1000
 
 4. Launch with Docker:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
+
+This will pull the `ghcr.io/d3v1l1989/followarr:edge` image.
 
 ### Manual Installation (Without Docker)
 
@@ -346,6 +357,20 @@ _View all your followed shows_
 _Receive notifications for new episodes_
 
 ## 👨‍💻 Development
+
+### 🚀 Release Process (for Maintainers)
+
+Followarr uses GitHub Actions to automatically build and publish Docker images to GitHub Container Registry (ghcr.io).
+
+1. **Push to `main` branch:** Automatically builds and pushes the `ghcr.io/d3v1l1989/followarr:edge` image.
+2. **Create and push a Git tag (e.g., `v1.0.1`):**
+   ```bash
+   git tag -a v1.0.1 -m "Release v1.0.1"
+   git push origin v1.0.1
+   ```
+   This automatically builds and pushes the versioned image `ghcr.io/d3v1l1989/followarr:v1.0.1`.
+
+Users can pull specific versions by changing the image tag in their `docker-compose.yml` (e.g., `ghcr.io/d3v1l1989/followarr:v1.0.1`).
 
 ### 🔄 Versioning
 
