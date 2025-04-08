@@ -77,8 +77,6 @@ This is the recommended method to install Followarr.
     Create a file named `docker-compose.yml` in the `followarr` directory and paste the following content:
 
     ```yaml
-    version: '3.8'
-
     services:
       followarr:
         image: ghcr.io/d3v1l1989/followarr:edge # Use :edge for latest dev, or a version tag like :v1.0.0

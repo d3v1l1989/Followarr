@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   followarr:
     image: ghcr.io/d3v1l1989/followarr:edge
