@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   followarr:
-    image: d3v1l1989/followarr:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: followarr
     user: "${UID:-1000}:${GID:-1000}"  # Run as non-root user
     volumes:
@@ -12,13 +14,13 @@ services:
     env_file:
       - .env
     ports:
-      - "${WEBHOOK_SERVER_PORT:-3000}:${WEBHOOK_SERVER_PORT:-3000}"
+      - "${WEBHOOK_PORT:-3000}:${WEBHOOK_PORT:-3000}"
     environment:
       - TZ=${TZ:-UTC}  # Set timezone
       - PYTHONUNBUFFERED=1  # Ensure Python output is unbuffered
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:${WEBHOOK_SERVER_PORT:-3000}/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:${WEBHOOK_PORT:-3000}/health"]
       interval: 30s
       timeout: 10s
       retries: 3
