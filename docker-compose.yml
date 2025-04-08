@@ -1,13 +1,14 @@
+version: '3.8'
+
 services:
-  bot:
-    build: 
-      context: .
-      dockerfile: Dockerfile
+  followarr:
+    image: d3v1l1989/followarr:latest
     container_name: followarr
     user: "${UID:-1000}:${GID:-1000}"  # Run as non-root user
     volumes:
-      - ./data:/app/data:rw  # Explicit read-write permissions
-      - ./logs:/app/logs:rw  # Add logging volume
+      - ./data:/app/data:rw  # Persistent data storage
+      - ./logs:/app/logs:rw  # Log files
+      - ./config:/app/config:ro  # Configuration files (read-only)
     env_file:
       - .env
     ports:
@@ -15,8 +16,13 @@ services:
     environment:
       - TZ=${TZ:-UTC}  # Set timezone
       - PYTHONUNBUFFERED=1  # Ensure Python output is unbuffered
-      - PYTHONPATH=/app
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${WEBHOOK_SERVER_PORT:-3000}/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     logging:
       driver: "json-file"
       options:

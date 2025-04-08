@@ -7,8 +7,9 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     gcc \
     python3-dev \
-    libffi-dev && \
-    rm -rf /var/lib/apt/lists/*
+    libffi-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
 
 # Create non-root user
 RUN groupadd -r botuser && useradd -r -g botuser botuser
@@ -22,10 +23,16 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the source files
-COPY src/*.py .
+COPY src/ /app/src/
+
+# Copy the main script
+COPY run.py /app/
+
+# Make the script executable
+RUN chmod +x /app/run.py
 
 # Switch to non-root user
 USER botuser
 
 # Run the bot
-CMD ["python", "bot.py"] 
+CMD ["python", "run.py"] 

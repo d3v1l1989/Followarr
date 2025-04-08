@@ -5,6 +5,7 @@
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![Discord](https://img.shields.io/badge/Discord-Bot-7289DA.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
+![Docker](https://img.shields.io/badge/Docker-Available-2496ED.svg)
 
 A Discord bot that integrates with Tautulli to notify users about new episodes of their favorite TV shows.  
 Get notifications when new episodes are added to your media server!
@@ -57,11 +58,11 @@ Receive detailed Discord DMs when new episodes are available:
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.11+ (for manual installation)
 - Discord Bot Token
 - TVDB API Key
 - Tautulli instance with API access
-- Docker (optional, but recommended)
+- Docker (for Docker installation)
 
 ### 🤖 Discord Bot Setup
 
@@ -94,7 +95,39 @@ Receive detailed Discord DMs when new episodes are available:
 
 ## 📦 Installation
 
-### Using Docker (Recommended)
+### Quick Install with Docker (Recommended)
+
+The easiest way to install Followarr is using Docker. We provide installation scripts for both Linux/macOS and Windows:
+
+#### Linux/macOS
+```bash
+# Download the installation script
+curl -sSL https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.sh -o install.sh
+
+# Make it executable
+chmod +x install.sh
+
+# Run the installation script
+./install.sh
+```
+
+#### Windows
+```powershell
+# Download the installation script
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.ps1" -OutFile "install.ps1"
+
+# Run the installation script
+.\install.ps1
+```
+
+The installation script will:
+1. Check if Docker is installed
+2. Create necessary directories
+3. Set up the .env file from the template
+4. Pull the Docker image
+5. Start the container
+
+### Manual Docker Installation
 
 1. Clone the repository:
 ```bash
@@ -105,7 +138,7 @@ cd Followarr
 2. Set up environment:
 ```bash
 cp .env.example .env
-mkdir -p data logs
+mkdir -p data logs config
 ```
 
 3. Configure `.env`:
@@ -131,10 +164,10 @@ GID=1000
 
 4. Launch with Docker:
 ```bash
-docker compose up -d
+docker-compose up -d
 ```
 
-### Manual Installation
+### Manual Installation (Without Docker)
 
 1. Install requirements:
 ```bash
@@ -245,7 +278,7 @@ The test script simulates a webhook that would be sent when a new episode is add
 ### Logs
 The bot provides detailed logging for troubleshooting:
 ```bash
-docker compose logs -f
+docker-compose logs -f
 ```
 
 ## License
