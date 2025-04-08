@@ -34,9 +34,9 @@ async def test_rookie_episodes():
         show_id = 350665
         
         # Get show details first
-        show_data = await client._make_request(f"series/{show_id}/extended")
-        if show_data:
-            logger.info(f"Show: {show_data.get('name')} ({show_data.get('status')})")
+        show_data = await client._make_request('GET', f"series/{show_id}/extended")
+        if show_data and 'data' in show_data:
+            logger.info(f"Show: {show_data['data'].get('name')} (success)")
         
         # Get upcoming episodes
         episodes = await client.get_upcoming_episodes(show_id)
@@ -44,7 +44,7 @@ async def test_rookie_episodes():
         if episodes:
             logger.info(f"\nUpcoming episodes ({len(episodes)}):")
             for ep in episodes:
-                logger.info(f"S{ep['season']:02d}E{ep['episode']:02d} - {ep['name']} ({ep['air_date']})")
+                logger.info(f"S{ep['season_number']:02d}E{ep['episode_number']:02d} - {ep['name']} ({ep['air_date']})")
         else:
             logger.info("No upcoming episodes found")
             

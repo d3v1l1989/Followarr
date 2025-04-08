@@ -115,7 +115,7 @@ class TVDBClient:
             logger.error(f"Error in _get_token: {str(e)}")
             raise
 
-    async def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None) -> Dict:
+    async def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None, json: Optional[Dict] = None) -> Dict:
         """Make an authenticated request to the TVDB API."""
         try:
             token = await self._get_token()
@@ -131,12 +131,13 @@ class TVDBClient:
                     method,
                     f"{self.base_url}/{endpoint}",
                     headers=headers,
-                    params=params
+                    params=params,
+                    json=json
                 ) as response:
                     if response.status == 401:
                         # Token expired, get a new one and retry
                         self.token = None
-                        return await self._make_request(method, endpoint, params)
+                        return await self._make_request(method, endpoint, params, json)
                     
                     response_data = await response.json()
                     logger.debug(f"TVDB API response: {response_data}")
