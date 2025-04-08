@@ -90,12 +90,35 @@ class TVDBClient:
                 logger.error(f"Error in _make_request: {str(e)}")
                 raise
 
+    async def search_series(self, query: str) -> List[Dict]:
+        """Search for TV series by name"""
+        try:
+            response = await self._make_request("search", params={"query": query, "type": "series"})
+            if response and "data" in response:
+                logger.info(f"Found {len(response['data'])} results for '{query}'")
+                return response["data"]
+            return []
+        except Exception as e:
+            logger.error(f"Error in search_series: {str(e)}")
+            return []
+
+    async def get_series_extended(self, series_id: int) -> Optional[Dict]:
+        """Get extended information for a TV series"""
+        try:
+            response = await self._make_request(f"series/{series_id}/extended")
+            if response and "data" in response:
+                logger.info(f"Successfully got details for: {response['data'].get('name', 'Unknown')}")
+                return response["data"]
+            return None
+        except Exception as e:
+            logger.error(f"Error in get_series_extended: {str(e)}")
+            return None
+
     async def search_show(self, show_name: str) -> Optional[TVShow]:
         """Search for a TV show by name"""
         logger.info(f"Searching for show: {show_name}")
         
         try:
-            # Use the existing search_series method
             results = await self.search_series(show_name)
             if not results:
                 return None
@@ -105,7 +128,7 @@ class TVDBClient:
             if not show:
                 return None
             
-            # Get extended details for the show using existing get_series_extended method
+            # Get extended details for the show
             show_id = show.get('tvdb_id') or show.get('id')
             if not show_id:
                 return None
