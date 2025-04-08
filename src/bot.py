@@ -316,7 +316,8 @@ class FollowarrBot(commands.Bot):
                 
                 for episode in all_episodes:
                     try:
-                        air_date = datetime.strptime(episode.get('air_date', ''), "%Y-%m-%d")
+                        # Parse the ISO format date with timezone
+                        air_date = datetime.fromisoformat(episode.get('air_date', '').replace('Z', '+00:00'))
                         month_key = air_date.strftime("%Y-%m")
                         week_num = air_date.isocalendar()[1]
                         
@@ -350,10 +351,10 @@ class FollowarrBot(commands.Bot):
                         
                         field_value = ""
                         for ep in week_episodes:
-                            air_date = datetime.strptime(ep.get('air_date', ''), "%Y-%m-%d")
+                            air_date = datetime.fromisoformat(ep.get('air_date', '').replace('Z', '+00:00'))
                             show_name = ep.get('show_name', 'Unknown Show')
-                            season = ep.get('season', 0)
-                            episode = ep.get('episode', 0)
+                            season = ep.get('season_number', 0)
+                            episode = ep.get('episode_number', 0)
                             name = ep.get('name', '')
                             
                             field_value += f"**{air_date.strftime('%d %b')}** - {show_name}\n"
@@ -387,10 +388,10 @@ class FollowarrBot(commands.Bot):
                 # Add next episode for quick reference
                 if all_episodes:
                     next_ep = all_episodes[0]
-                    air_date = datetime.strptime(next_ep.get('air_date', ''), "%Y-%m-%d")
+                    air_date = datetime.fromisoformat(next_ep.get('air_date', '').replace('Z', '+00:00'))
                     show_name = next_ep.get('show_name', 'Unknown Show')
-                    season = next_ep.get('season', 0)
-                    episode = next_ep.get('episode', 0)
+                    season = next_ep.get('season_number', 0)
+                    episode = next_ep.get('episode_number', 0)
                     name = next_ep.get('name', '')
                     
                     next_ep_text = (
