@@ -3,10 +3,18 @@ import os
 import logging
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import traceback
 import json
+from dotenv import load_dotenv
 
+# Load env vars and setup logging
+load_dotenv()
+log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
+logging.basicConfig(
+    level=getattr(logging, log_level),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -29,25 +37,15 @@ class TVShow:
     remote_ids: Optional[List[Dict[str, Any]]] = None
 
     def __post_init__(self):
-        # Convert string ID to int if necessary
         if isinstance(self.id, str):
             self.id = int(self.id)
         
-        # Handle image URL
         if not self.image_url and self.image:
-            # Make sure the image path starts with a slash
             image_path = self.image if self.image.startswith('/') else f"/{self.image}"
             self.image_url = f"https://www.thetvdb.com{image_path}"
 
     @classmethod
     def from_api_response(cls, data: Dict[str, Any]) -> 'TVShow':
-        """Create a TVShow instance from API response data"""
-        logger.info("Processing show data from API response")
-        
-        # Log the image-related data we receive
-        logger.info(f"Image data received - image: {data.get('image')}")
-        logger.info(f"Artwork data received: {data.get('artworks', [])[:2]}")
-        
         show_data = {
             'id': data.get('id'),
             'name': data.get('name'),
@@ -59,33 +57,24 @@ class TVShow:
             'image_url': None
         }
 
-        # Handle image URL - check if it's already a full URL
         if data.get('image'):
             if data['image'].startswith('http'):
                 show_data['image_url'] = data['image']
-                logger.info(f"Using provided full image URL: {show_data['image_url']}")
             else:
                 image_path = data['image'] if data['image'].startswith('/') else f"/{data['image']}"
                 show_data['image_url'] = f"https://artworks.thetvdb.com{image_path}"
-                logger.info(f"Using constructed image URL: {show_data['image_url']}")
         
-        # If no main image, try artworks
         elif data.get('artworks'):
-            logger.info(f"No main image, checking {len(data['artworks'])} artworks")
             for artwork in data['artworks']:
                 if artwork.get('type') == 'poster' and artwork.get('image'):
                     if artwork['image'].startswith('http'):
                         show_data['image_url'] = artwork['image']
-                        logger.info(f"Using provided full artwork URL: {show_data['image_url']}")
                     else:
                         image_path = artwork['image'] if artwork['image'].startswith('/') else f"/{artwork['image']}"
                         show_data['image_url'] = f"https://artworks.thetvdb.com{image_path}"
-                        logger.info(f"Using constructed artwork URL: {show_data['image_url']}")
                     break
         
-        # Filter out None values
         show_data = {k: v for k, v in show_data.items() if v is not None}
-        logger.info(f"Final image URL set to: {show_data.get('image_url', 'None')}")
         return cls(**show_data)
 
 class TVDBClient:
@@ -95,14 +84,11 @@ class TVDBClient:
             raise ValueError("TVDB API key not provided and not found in environment variables")
         self.token = None
         self.base_url = 'https://api4.thetvdb.com/v4'
-        logger.info("Initialized TVDB Client")
 
     async def _get_token(self) -> str:
-        """Get authentication token from TVDB API."""
         if self.token:
             return self.token
 
-        logger.info("Getting new TVDB token")
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
@@ -113,7 +99,6 @@ class TVDBClient:
                         data = await response.json()
                         if data and 'data' in data and 'token' in data['data']:
                             self.token = data['data']['token']
-                            logger.info("Successfully obtained TVDB token")
                             return self.token
                     
                     response_text = await response.text()
@@ -124,15 +109,12 @@ class TVDBClient:
             raise
 
     async def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None, json: Optional[Dict] = None) -> Dict:
-        """Make an authenticated request to the TVDB API."""
         try:
             token = await self._get_token()
             headers = {
                 "Authorization": f"Bearer {token}",
                 "Content-Type": "application/json"
             }
-            
-            logger.info(f"Making TVDB API request: {method} {endpoint} with params: {params}")
             
             async with aiohttp.ClientSession() as session:
                 async with session.request(
@@ -143,12 +125,10 @@ class TVDBClient:
                     json=json
                 ) as response:
                     if response.status == 401:
-                        # Token expired, get a new one and retry
                         self.token = None
                         return await self._make_request(method, endpoint, params, json)
                     
                     response_data = await response.json()
-                    logger.debug(f"TVDB API response: {response_data}")
                     return response_data
                     
         except Exception as e:
@@ -157,7 +137,6 @@ class TVDBClient:
             return None
 
     async def search_series(self, query: str) -> List[Dict]:
-        """Search for TV series by name."""
         try:
             response = await self._make_request('GET', 'search', params={'query': query})
             if response and 'data' in response:
@@ -168,7 +147,6 @@ class TVDBClient:
             return []
 
     async def get_series_extended(self, series_id: int) -> Optional[Dict]:
-        """Get extended information for a TV series."""
         try:
             response = await self._make_request('GET', f'series/{series_id}/extended')
             if response and 'data' in response:
@@ -179,19 +157,16 @@ class TVDBClient:
             return None
 
     async def search_show(self, show_name: str) -> Optional[TVShow]:
-        """Search for a TV show by name."""
         try:
             results = await self.search_series(show_name)
             if not results:
                 return None
             
-            # Get the first result
             show = results[0]
             show_id = show.get('tvdb_id') or show.get('id')
             if not show_id:
                 return None
             
-            # Get extended details
             show_details = await self.get_series_extended(show_id)
             if not show_details:
                 return None
@@ -203,7 +178,6 @@ class TVDBClient:
             return None
 
     async def get_show_details(self, show_id: int) -> Optional[Dict]:
-        """Get basic details for a TV show."""
         try:
             response = await self._make_request('GET', f'series/{show_id}')
             if response and 'data' in response:
@@ -214,7 +188,6 @@ class TVDBClient:
             return None
 
     async def get_episode_details(self, episode_id: int) -> Optional[Dict]:
-        """Get details for a specific episode."""
         try:
             response = await self._make_request('GET', f'episodes/{episode_id}/extended')
             if response and 'data' in response:
@@ -224,70 +197,50 @@ class TVDBClient:
             logger.error(f"Error getting episode details: {e}")
             return None
 
-    async def get_upcoming_episodes(self, show_id: int) -> List[Dict[str, Any]]:
-        """Get upcoming episodes for a show."""
+    async def get_upcoming_episodes(self, series_id: str) -> List[Dict]:
         try:
-            # First get the show details to verify it exists
-            show_data = await self._make_request('GET', f'series/{show_id}/extended')
-            if not show_data or 'data' not in show_data:
-                logger.error(f"Show with ID {show_id} not found")
+            series = await self.get_series(series_id)
+            if not series:
+                logger.error(f"Could not find series with ID {series_id}")
                 return []
 
-            logger.info(f"Fetching upcoming episodes for show {show_id}")
-            
-            # Get all episodes
-            response = await self._make_request('GET', f'series/{show_id}/episodes/official')
-            logger.info(f"Raw episodes response: {response}")
-            
-            if not response or 'data' not in response or 'episodes' not in response['data']:
-                logger.error("No episodes found in response")
+            episodes = await self.get_episodes(series_id)
+            if not episodes:
+                logger.error(f"No episodes found for series {series_id}")
                 return []
-            
-            episodes = response['data']['episodes']
-            logger.info(f"Found {len(episodes)} total episodes")
-            
-            # Get current date in UTC
+
             now = datetime.now(timezone.utc)
             
-            # Filter for upcoming episodes
-            upcoming_episodes = []
+            upcoming = []
             for episode in episodes:
                 try:
-                    # Parse air date - ensure it's timezone-aware
-                    aired_str = episode.get('aired', '')
-                    if not aired_str:
+                    air_date_str = episode.get('air_date', '')
+                    if not air_date_str:
                         continue
                         
-                    # Handle different date formats
-                    if 'T' in aired_str:
-                        # ISO format with time
-                        air_date = datetime.fromisoformat(aired_str.replace('Z', '+00:00'))
+                    if 'T' in air_date_str:
+                        air_date_str = air_date_str.replace('Z', '+00:00')
+                        air_date = datetime.fromisoformat(air_date_str)
                     else:
-                        # Date only format (YYYY-MM-DD)
-                        air_date = datetime.strptime(aired_str, '%Y-%m-%d')
-                        # Add timezone info
+                        air_date = datetime.strptime(air_date_str, "%Y-%m-%d")
                         air_date = air_date.replace(tzinfo=timezone.utc)
                     
-                    # Only include episodes that haven't aired yet
                     if air_date > now:
-                        upcoming_episodes.append({
-                            'id': episode['id'],
-                            'name': episode['name'],
-                            'air_date': air_date.isoformat(),
-                            'season_number': episode['seasonNumber'],
-                            'episode_number': episode['number'],
-                            'overview': episode.get('overview', '')
-                        })
-                except (KeyError, ValueError) as e:
-                    logger.warning(f"Error processing episode: {e}")
+                        upcoming.append(episode)
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Error processing episode date: {e}")
                     continue
+
+            upcoming.sort(key=lambda x: x.get('air_date', ''))
             
-            # Sort by air date
-            upcoming_episodes.sort(key=lambda x: x['air_date'])
+            three_months_later = now + timedelta(days=90)
+            upcoming = [
+                ep for ep in upcoming 
+                if datetime.fromisoformat(ep.get('air_date', '').replace('Z', '+00:00')) <= three_months_later
+            ]
             
-            logger.info(f"Found {len(upcoming_episodes)} upcoming episodes")
-            return upcoming_episodes
-            
+            return upcoming
+
         except Exception as e:
-            logger.error(f"Error getting upcoming episodes: {e}")
+            logger.error(f"Error getting upcoming episodes for series {series_id}: {str(e)}")
             return [] 

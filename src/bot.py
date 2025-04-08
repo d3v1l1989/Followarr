@@ -16,17 +16,16 @@ from datetime import datetime, timedelta
 import calendar
 from collections import defaultdict
 
-# Set up logging
+# Load env vars and setup logging
+load_dotenv()
+log_level = os.getenv('LOG_LEVEL', 'INFO').upper()
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=getattr(logging, log_level),
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-load_dotenv()
-
 class CustomCommandTree(CommandTree):
-    """Custom command tree with detailed logging"""
     async def sync(self, *, guild=None):
         logger.info(f"Starting command sync {'globally' if guild is None else f'for guild {guild.id}'}")
         try:
@@ -51,7 +50,6 @@ class FollowarrBot(commands.Bot):
         intents = discord.Intents.default()
         intents.message_content = True
         
-        # Use our custom command tree
         super().__init__(
             command_prefix="!",
             intents=intents,
@@ -60,37 +58,22 @@ class FollowarrBot(commands.Bot):
         
         logger.info("Initializing bot components...")
         
-        # Add debug logging for token and application ID
-        logger.debug(f"Bot token present: {'Yes' if os.getenv('DISCORD_BOT_TOKEN') else 'No'}")
-        
-        # Initialize clients
+        # Initialize API clients and database
         self.tvdb_client = TVDBClient(os.getenv('TVDB_API_KEY'))
-        logger.info(f"TVDB client initialized with API key: {os.getenv('TVDB_API_KEY')[:5]}...")
-        
         self.tautulli_client = TautulliClient(
             os.getenv('TAUTULLI_URL'),
             os.getenv('TAUTULLI_API_KEY')
         )
-        logger.info("Tautulli client initialized")
-        
         self.db = Database()
-        logger.info("Database initialized")
-        
-        # Set up webhook handler
         self.webhook_server = WebhookServer(self.handle_episode_notification)
-        logger.info("Webhook server initialized")
 
-        # Set up commands
+        # Setup slash commands
         self.setup_commands()
 
     def setup_commands(self):
         @self.tree.command(name="follow", description="Follow a TV show")
         @app_commands.describe(show_name="The name of the show you want to follow")
         async def follow(interaction: discord.Interaction, show_name: str):
-            """Follow a TV show"""
-            logger.info(f"User {interaction.user} ({interaction.user.id}) trying to follow show: {show_name}")
-            
-            # Defer the response since TVDB API calls might take some time
             await interaction.response.defer(ephemeral=False)
             
             try:
@@ -99,69 +82,51 @@ class FollowarrBot(commands.Bot):
                     await interaction.followup.send(f"Could not find show: {show_name}")
                     return
                 
-                # Get user's current subscriptions
                 user_shows = self.db.get_user_subscriptions(str(interaction.user.id))
                 if any(s['id'] == show.id for s in user_shows):
                     await interaction.followup.send(f"You are already following {show.name}!")
                     return
                 
-                # Add the subscription
                 self.db.add_subscription(str(interaction.user.id), show.id, show.name)
                 
-                # Add this debug logging
-                logger.info(f"Creating embed for show: {show.name}")
-                logger.info(f"Show image URL: {getattr(show, 'image_url', 'No image URL')}")
-                
-                # Create embed
+                # Create follow confirmation embed
                 embed = discord.Embed(
                     title="✅ Show Followed",
                     description=f"You are now following: **{show.name}**",
                     color=discord.Color.green()
                 )
                 
-                # Try different ways to set the image
                 if hasattr(show, 'image_url') and show.image_url:
-                    logger.info(f"Attempting to set thumbnail with URL: {show.image_url}")
                     try:
                         embed.set_thumbnail(url=show.image_url)
                     except Exception as e:
                         logger.error(f"Error setting thumbnail: {str(e)}")
-                        # Try setting as main image instead
                         try:
                             embed.set_image(url=show.image_url)
-                            logger.info("Successfully set main image instead of thumbnail")
                         except Exception as e:
                             logger.error(f"Error setting main image: {str(e)}")
                 
-                # Add show information fields
                 if show.overview:
-                    # Truncate overview if it's too long
                     overview = show.overview[:1024] + '...' if len(show.overview) > 1024 else show.overview
                     embed.add_field(name="Overview", value=overview, inline=False)
                 
-                # Format status properly
                 status = show.status.get('name', 'Unknown') if isinstance(show.status, dict) else str(show.status)
                 embed.add_field(name="Status", value=status, inline=True)
                 
-                # Add first aired date if available
                 if show.first_aired:
-                    # Format the date nicely
                     try:
                         air_date = datetime.strptime(show.first_aired, '%Y-%m-%d').strftime('%B %d, %Y')
                         embed.add_field(name="First Aired", value=air_date, inline=True)
                     except ValueError:
                         embed.add_field(name="First Aired", value=show.first_aired, inline=True)
                 
-                # Add network if available
                 if hasattr(show, 'network') and show.network:
                     network_name = show.network if isinstance(show.network, str) else show.network.get('name', 'Unknown')
                     embed.add_field(name="Network", value=network_name, inline=True)
                 
-                # Set footer with TVDB attribution
                 embed.set_footer(text="Data provided by TVDB")
                 
                 await interaction.followup.send(embed=embed)
-                logger.info(f"Successfully added subscription for {interaction.user} to {show.name}")
                 
             except Exception as e:
                 logger.error(f"Error following show: {str(e)}")
@@ -172,11 +137,7 @@ class FollowarrBot(commands.Bot):
             try:
                 await interaction.response.defer()
                 
-                logger.info(f"User {interaction.user.name} requested their show list")
-                
-                # Get user's subscriptions (synchronous call)
                 shows = self.db.get_user_subscriptions(str(interaction.user.id))
-                logger.info(f"Found {len(shows) if shows else 0} shows for user {interaction.user.name}")
                 
                 if not shows:
                     await interaction.followup.send("You're not following any shows!")
@@ -206,56 +167,40 @@ class FollowarrBot(commands.Bot):
             try:
                 await interaction.response.defer()
                 
-                logger.info(f"User {interaction.user.name} ({interaction.user.id}) trying to unfollow show: {show_name}")
-                
-                # Search for show first
                 show = await self.tvdb_client.search_show(show_name)
                 
                 if not show:
-                    logger.warning(f"No show found for query: {show_name}")
                     await interaction.followup.send(f"Could not find show: {show_name}")
                     return
                 
-                # Use the TVShow object properties correctly
-                logger.info(f"Found show to unfollow: {show.name} (ID: {show.id})")
-                
-                # Check if user is following the show
                 if not self.db.is_user_subscribed(str(interaction.user.id), show.id):
                     await interaction.followup.send(f"You are not following {show.name}!")
                     return
                 
-                # Remove the subscription
                 if self.db.remove_subscription(str(interaction.user.id), show.id):
-                    # Create a nice embed for the response
                     embed = discord.Embed(
                         title="❌ Show Unfollowed",
                         description=f"You are no longer following: **{show.name}**",
                         color=discord.Color.red()
                     )
                     
-                    # Add show poster if available
                     if hasattr(show, 'image_url') and show.image_url:
                         try:
                             embed.set_thumbnail(url=show.image_url)
                         except Exception as e:
                             logger.error(f"Error setting thumbnail: {str(e)}")
                     
-                    # Add basic show info
                     if show.overview:
-                        # Truncate overview if it's too long
                         overview = show.overview[:1024] + '...' if len(show.overview) > 1024 else show.overview
                         embed.add_field(name="Overview", value=overview, inline=False)
                     
-                    # Add status if available
                     if show.status:
                         status = show.status.get('name', 'Unknown') if isinstance(show.status, dict) else str(show.status)
                         embed.add_field(name="Status", value=status, inline=True)
                     
-                    # Set footer
                     embed.set_footer(text="Data provided by TVDB")
                     
                     await interaction.followup.send(embed=embed)
-                    logger.info(f"Successfully removed subscription for {interaction.user.name} from {show.name}")
                 else:
                     await interaction.followup.send(f"Failed to unfollow {show.name}. Please try again.")
                 
@@ -268,43 +213,29 @@ class FollowarrBot(commands.Bot):
             try:
                 await interaction.response.defer()
                 
-                logger.info(f"User {interaction.user.name} requested their calendar")
-                
-                # Get user's subscriptions
                 shows = self.db.get_user_subscriptions(str(interaction.user.id))
                 if not shows:
                     await interaction.followup.send("You're not following any shows!")
                     return
                 
-                logger.info(f"Found {len(shows)} shows to check for episodes")
-                
                 # Get upcoming episodes for each show
                 all_episodes = []
-                total_shows = len(shows)
-                shows_checked = 0
 
                 for show in shows:
-                    shows_checked += 1
-                    logger.info(f"Checking episodes for show {show['name']} (ID: {show['id']}) ({shows_checked}/{total_shows})")
                     episodes = await self.tvdb_client.get_upcoming_episodes(show['id'])
                     if episodes:
-                        # Add show name to each episode
                         for ep in episodes:
                             ep['show_name'] = show['name']
                         all_episodes.extend(episodes)
-                        logger.info(f"Found {len(episodes)} upcoming episodes for {show['name']}")
-                    else:
-                        logger.info(f"No upcoming episodes found for {show['name']}")
 
                 if not all_episodes:
                     await interaction.followup.send("No upcoming episodes found for your shows in the next 3 months!")
                     return
 
-                # Sort all episodes by air date
+                # Sort episodes by air date
                 all_episodes.sort(key=lambda x: x['air_date'])
-                logger.info(f"Total upcoming episodes found: {len(all_episodes)}")
                 
-                # Group episodes by month and week
+                # Group episodes by month
                 episodes_by_month = defaultdict(lambda: defaultdict(list))
                 today = datetime.now()
                 next_3_months = [
@@ -312,25 +243,16 @@ class FollowarrBot(commands.Bot):
                     for i in range(3)
                 ]
                 
-                logger.info(f"Looking for episodes in months: {next_3_months}")
-                
                 for episode in all_episodes:
                     try:
-                        # Parse the ISO format date with timezone
                         air_date = datetime.fromisoformat(episode.get('air_date', '').replace('Z', '+00:00'))
                         month_key = air_date.strftime("%Y-%m")
                         week_num = air_date.isocalendar()[1]
                         
-                        logger.debug(f"Processing episode: {episode['show_name']} - {episode['air_date']} (Month: {month_key})")
-                        
                         if month_key in next_3_months:
                             episodes_by_month[month_key][week_num].append(episode)
-                            logger.debug(f"Added episode to {month_key} week {week_num}")
-                        else:
-                            logger.debug(f"Episode date {month_key} not in next 3 months")
                     except (ValueError, TypeError) as e:
                         logger.error(f"Error processing episode date: {e}")
-                        logger.debug(f"Problematic episode data: {episode}")
                         continue
                 
                 # Create calendar embeds
@@ -338,7 +260,6 @@ class FollowarrBot(commands.Bot):
                 for month_key in next_3_months:
                     month_date = datetime.strptime(month_key, "%Y-%m")
                     
-                    # Skip months with no episodes
                     total_month_episodes = sum(len(episodes) for episodes in episodes_by_month[month_key].values())
                     if total_month_episodes == 0:
                         continue
@@ -349,12 +270,11 @@ class FollowarrBot(commands.Bot):
                         color=discord.Color.blue()
                     )
                     
-                    # Add episodes by week
                     for week_num in sorted(episodes_by_month[month_key].keys()):
                         week_episodes = episodes_by_month[month_key][week_num]
                         if not week_episodes:
                             continue
-                        
+                            
                         field_value = ""
                         for ep in week_episodes:
                             air_date = datetime.fromisoformat(ep.get('air_date', '').replace('Z', '+00:00'))
@@ -363,7 +283,6 @@ class FollowarrBot(commands.Bot):
                             episode = ep.get('episode_number', 0)
                             name = ep.get('name', '')
                             
-                            # Format the episode entry with minimal emojis and better spacing
                             field_value += f"📺 **{show_name}**\n"
                             field_value += f"📅 {air_date.strftime('%A, %B %d')}\n"
                             field_value += f"S{season:02d}E{episode:02d}"
@@ -371,7 +290,6 @@ class FollowarrBot(commands.Bot):
                                 field_value += f" - {name}"
                             field_value += "\n\n"
                         
-                        # Get the first episode date in the week for the field name
                         first_ep_date = datetime.fromisoformat(week_episodes[0].get('air_date', '').replace('Z', '+00:00'))
                         embed.add_field(
                             name=f"{first_ep_date.strftime('%B %d')}",
@@ -379,7 +297,6 @@ class FollowarrBot(commands.Bot):
                             inline=False
                         )
                     
-                    # Add footer with total episodes for the month
                     embed.set_footer(text=f"Total episodes this month: {total_month_episodes}")
                     
                     embeds.append(embed)
@@ -391,7 +308,6 @@ class FollowarrBot(commands.Bot):
                     color=discord.Color.green()
                 )
                 
-                # Add next episode for quick reference
                 if all_episodes:
                     next_ep = all_episodes[0]
                     air_date = datetime.fromisoformat(next_ep.get('air_date', '').replace('Z', '+00:00'))
@@ -414,7 +330,6 @@ class FollowarrBot(commands.Bot):
                         inline=False
                     )
                     
-                    # Add quick stats
                     stats_text = (
                         f"📊 **Statistics**\n"
                         f"• Total episodes: {len(all_episodes)}\n"
@@ -429,7 +344,6 @@ class FollowarrBot(commands.Bot):
                 
                 embeds.insert(0, summary_embed)
                 
-                # Send all embeds
                 await interaction.followup.send(embeds=embeds)
                 
             except Exception as e:
@@ -438,33 +352,20 @@ class FollowarrBot(commands.Bot):
 
     async def setup_hook(self):
         try:
-            logger.info("Initializing database...")
             self.db.init_db()
-            
-            logger.info("Starting command sync process...")
-            # Log the commands that are about to be synced
-            commands = self.tree.get_commands()
-            logger.info(f"Preparing to sync {len(commands)} commands:")
-            for cmd in commands:
-                logger.info(f"- Command '{cmd.name}': {cmd.description}")
             
             # Sync commands
             try:
                 await self.tree.sync()
-                logger.info("Command tree sync completed successfully")
             except discord.errors.Forbidden as e:
                 logger.error(f"Forbidden error during sync: {str(e)}")
-                logger.error("Bot might lack required permissions")
             except discord.errors.HTTPException as e:
                 logger.error(f"HTTP error during sync: {str(e)}")
-                logger.error(f"Status: {e.status}, Code: {e.code}")
-                logger.error(f"Response: {e.text if hasattr(e, 'text') else 'No response text'}")
             except Exception as e:
                 logger.error(f"Unexpected error during sync: {str(e)}")
                 logger.error(traceback.format_exc())
             
             # Start webhook server
-            logger.info("Starting webhook server...")
             port = int(os.getenv('WEBHOOK_SERVER_PORT', 3000))
             config = uvicorn.Config(
                 self.webhook_server.app,
@@ -487,7 +388,6 @@ class FollowarrBot(commands.Bot):
             logger.info(f"- {guild.name} (ID: {guild.id})")
             
         try:
-            # Try to sync commands again and log the results
             commands = await self.tree.sync()
             logger.info(f"Synced {len(commands)} commands on ready")
             for cmd in commands:
@@ -500,28 +400,17 @@ class FollowarrBot(commands.Bot):
         logger.error(f"Command error: {str(error)}")
         logger.error(traceback.format_exc())
 
-    # Remove or comment out this method since it's not needed
-    # async def on_interaction(self, interaction: discord.Interaction):
-    #     logger.info(f"Received interaction: {interaction.type}")
-    #     logger.info(f"Command name: {interaction.command.name if interaction.command else 'No command'}")
-    #     await self.process_interaction(interaction)
-
     async def handle_episode_notification(self, episode_data: dict):
         try:
-            logger.info(f"Received notification for episode: {episode_data}")
-            
-            # Get the TVDB show ID from the payload
             tvdb_id = episode_data.get('tvdb_id')
             if not tvdb_id:
                 logger.error("No TVDB ID in notification payload")
                 return
 
-            # Get show details from TVDB
             show = await self.tvdb_client.search_show(episode_data.get('title', ''))
             if not show:
                 logger.warning(f"Could not find show details from TVDB for ID: {tvdb_id}")
 
-            # Get subscribers for this show
             subscribers = self.db.get_show_subscribers(int(tvdb_id))
             
             if not subscribers:
@@ -536,7 +425,6 @@ class FollowarrBot(commands.Bot):
                 timestamp=datetime.now()
             )
 
-            # Add episode information
             episode_title = f"S{episode_data.get('season_num', '00')}E{episode_data.get('episode_num', '00')}"
             if episode_data.get('episode_name'):
                 episode_title += f" - {episode_data['episode_name']}"
@@ -547,15 +435,13 @@ class FollowarrBot(commands.Bot):
                 inline=False
             )
 
-            # Add summary if available
             if episode_data.get('summary'):
                 embed.add_field(
                     name="📝 Summary",
-                    value=episode_data['summary'][:1024],  # Discord has a 1024 character limit
+                    value=episode_data['summary'][:1024],
                     inline=False
                 )
 
-            # Add air date if available
             if episode_data.get('air_date'):
                 embed.add_field(
                     name="📅 Air Date",
@@ -563,7 +449,6 @@ class FollowarrBot(commands.Bot):
                     inline=True
                 )
 
-            # Add show status if available from TVDB
             if show and show.status:
                 status = show.status.get('name', 'Unknown') if isinstance(show.status, dict) else str(show.status)
                 embed.add_field(
@@ -572,27 +457,18 @@ class FollowarrBot(commands.Bot):
                     inline=True
                 )
 
-            # Try to add show image in this order:
-            # 1. Show poster from TVDB if available
-            # 2. Episode poster from notification if available
-            # 3. Fall back to no image
             if show and hasattr(show, 'image_url') and show.image_url:
-                logger.info(f"Using show poster from TVDB: {show.image_url}")
                 embed.set_thumbnail(url=show.image_url)
             elif episode_data.get('poster_url'):
-                logger.info(f"Using episode poster from notification: {episode_data['poster_url']}")
                 embed.set_thumbnail(url=episode_data['poster_url'])
 
-            # Add footer with TVDB attribution
             embed.set_footer(text="Data provided by TVDB • Followarr Notification")
 
-            # Send notification to each subscriber
             for user_id in subscribers:
                 try:
                     user = await self.fetch_user(int(user_id))
                     if user:
                         await user.send(embed=embed)
-                        logger.info(f"Sent notification to user {user_id}")
                 except Exception as e:
                     logger.error(f"Failed to send notification to user {user_id}: {str(e)}")
 
@@ -602,7 +478,6 @@ class FollowarrBot(commands.Bot):
 
 def main():
     try:
-        logger.info("Starting bot...")
         bot = FollowarrBot()
         bot.run(os.getenv('DISCORD_BOT_TOKEN'))
     except Exception as e:
