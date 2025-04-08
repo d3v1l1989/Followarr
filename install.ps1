@@ -35,28 +35,46 @@ Write-Host "`n✅ Docker and Docker Compose are installed`n" -ForegroundColor Gr
 Write-Host "📁 Creating directories..." -ForegroundColor Cyan
 New-Item -ItemType Directory -Force -Path data, logs, config | Out-Null
 
-# Copy .env.example to .env if it doesn't exist
+# Handle .env file
+$envEdited = $false
 if (-not (Test-Path .env)) {
     Write-Host "📝 Creating .env file from template..." -ForegroundColor Cyan
     Copy-Item .env.example .env
     Write-Host "⚠️  Please edit the .env file with your configuration" -ForegroundColor Yellow
-    Write-Host "   You can do this now or later" -ForegroundColor Yellow
     $editNow = Read-Host "   Would you like to edit the .env file now? (y/n)"
     if ($editNow -eq 'y') {
         notepad .env
+        $envEdited = $true
     }
 } else {
     Write-Host "✅ .env file already exists" -ForegroundColor Green
+    # Check if .env is using default values
+    $envContent = Get-Content .env -Raw
+    if ($envContent -match "your_discord_bot_token_here" -or $envContent -match "your_tvdb_api_key_here") {
+        Write-Host "⚠️  Your .env file contains default values that need to be updated" -ForegroundColor Yellow
+        $editNow = Read-Host "   Would you like to edit the .env file now? (y/n)"
+        if ($editNow -eq 'y') {
+            notepad .env
+            $envEdited = $true
+        }
+    }
 }
 
-Write-Host "`n🐳 Building Docker image..." -ForegroundColor Cyan
-Invoke-Expression "$dockerComposeCmd build"
+# Only proceed with Docker operations if .env is properly configured
+$envContent = Get-Content .env -Raw
+if ($envEdited -or (-not ($envContent -match "your_discord_bot_token_here") -and -not ($envContent -match "your_tvdb_api_key_here"))) {
+    Write-Host "`n🐳 Building Docker image..." -ForegroundColor Cyan
+    Invoke-Expression "$dockerComposeCmd build"
 
-Write-Host "🚀 Starting Followarr..." -ForegroundColor Cyan
-Invoke-Expression "$dockerComposeCmd up -d"
+    Write-Host "🚀 Starting Followarr..." -ForegroundColor Cyan
+    Invoke-Expression "$dockerComposeCmd up -d"
 
-Write-Host "`n✅ Installation complete!" -ForegroundColor Green
-Write-Host "📝 Check the logs with: $dockerComposeCmd logs -f" -ForegroundColor Cyan
-Write-Host "🛑 Stop the bot with: $dockerComposeCmd down" -ForegroundColor Cyan
-Write-Host "`n🔧 Don't forget to configure your Tautulli webhook!" -ForegroundColor Yellow
-Write-Host "   URL: http://followarr:3000/webhook/tautulli" -ForegroundColor Yellow 
+    Write-Host "`n✅ Installation complete!" -ForegroundColor Green
+    Write-Host "📝 Check the logs with: $dockerComposeCmd logs -f" -ForegroundColor Cyan
+    Write-Host "🛑 Stop the bot with: $dockerComposeCmd down" -ForegroundColor Cyan
+    Write-Host "`n🔧 Don't forget to configure your Tautulli webhook!" -ForegroundColor Yellow
+    Write-Host "   URL: http://followarr:3000/webhook/tautulli" -ForegroundColor Yellow
+} else {
+    Write-Host "`n❌ Installation aborted. Please configure your .env file before proceeding." -ForegroundColor Red
+    exit 1
+} 

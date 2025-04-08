@@ -33,73 +33,54 @@ echo -e "\n\033[32m✅ Docker and Docker Compose are installed\033[0m\n"
 echo -e "\033[36m📁 Creating directories...\033[0m"
 mkdir -p data logs config
 
-# Copy .env.example to .env if it doesn't exist
+# Handle .env file
+ENV_EDITED=false
 if [ ! -f .env ]; then
     echo -e "\033[36m📝 Creating .env file from template...\033[0m"
     cp .env.example .env
     echo -e "\033[33m⚠️  Please edit the .env file with your configuration\033[0m"
-    echo -e "\033[33m   You can do this now or later\033[0m"
     read -p "   Would you like to edit the .env file now? (y/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         if command -v nano &> /dev/null; then
-            echo "Opening .env file with nano..."
             nano .env
-        elif command -v vim &> /dev/null; then
-            echo "Opening .env file with vim..."
-            vim .env
         else
-            echo "❌ No suitable text editor found. Please edit .env manually."
+            vi .env
         fi
+        ENV_EDITED=true
     fi
 else
     echo -e "\033[32m✅ .env file already exists\033[0m"
-fi
-
-# Ask if user wants to edit the .env file now
-read -p "Would you like to edit the .env file now? (y/n): " edit_env
-if [[ $edit_env == "y" || $edit_env == "Y" ]]; then
-    # Check for common text editors
-    if command -v nano &> /dev/null; then
-        echo "Opening .env file with nano..."
-        nano .env
-    elif command -v vim &> /dev/null; then
-        echo "Opening .env file with vim..."
-        vim .env
-    else
-        echo "No common text editor found. Please edit the .env file manually."
-        echo "You can use any text editor to edit the file at: $(pwd)/.env"
+    # Check if .env is using default values
+    if grep -q "your_discord_bot_token_here" .env || grep -q "your_tvdb_api_key_here" .env; then
+        echo -e "\033[33m⚠️  Your .env file contains default values that need to be updated\033[0m"
+        read -p "   Would you like to edit the .env file now? (y/n) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if command -v nano &> /dev/null; then
+                nano .env
+            else
+                vi .env
+            fi
+            ENV_EDITED=true
+        fi
     fi
-else
-    echo "You can edit the .env file later using any text editor."
-    echo "The file is located at: $(pwd)/.env"
 fi
 
-echo -e "\n\033[36m🐳 Building Docker image...\033[0m"
-$DOCKER_COMPOSE_CMD build
+# Only proceed with Docker operations if .env is properly configured
+if [ "$ENV_EDITED" = true ] || (! grep -q "your_discord_bot_token_here" .env && ! grep -q "your_tvdb_api_key_here" .env); then
+    echo -e "\n\033[36m🐳 Building Docker image...\033[0m"
+    $DOCKER_COMPOSE_CMD build
 
-echo -e "\033[36m🚀 Starting Followarr...\033[0m"
-$DOCKER_COMPOSE_CMD up -d
+    echo -e "\033[36m🚀 Starting Followarr...\033[0m"
+    $DOCKER_COMPOSE_CMD up -d
 
-# Check if the container is running
-if [ "$(docker ps -q -f name=followarr)" ]; then
-    echo "✅ Followarr is now running!"
-    echo ""
-    echo "📝 Next steps:"
-    echo "1. Make sure your .env file is properly configured with your Discord bot token, TVDB API key, and Tautulli settings"
-    echo "2. If you edited the .env file, restart the container with: $DOCKER_COMPOSE_CMD restart"
-    echo "3. Check the logs with: $DOCKER_COMPOSE_CMD logs -f"
-    echo ""
-    echo "🔗 For more information, visit: https://github.com/d3v1l1989/Followarr"
+    echo -e "\n\033[32m✅ Installation complete!\033[0m"
+    echo -e "\033[36m📝 Check the logs with: $DOCKER_COMPOSE_CMD logs -f\033[0m"
+    echo -e "\033[36m🛑 Stop the bot with: $DOCKER_COMPOSE_CMD down\033[0m"
+    echo -e "\n\033[33m🔧 Don't forget to configure your Tautulli webhook!\033[0m"
+    echo -e "\033[33m   URL: http://followarr:3000/webhook/tautulli\033[0m"
 else
-    echo "❌ Failed to start Followarr. Check the logs with: $DOCKER_COMPOSE_CMD logs"
+    echo -e "\n\033[31m❌ Installation aborted. Please configure your .env file before proceeding.\033[0m"
     exit 1
-fi
-
-echo
-echo -e "\033[32m✅ Installation complete!\033[0m"
-echo -e "\033[36m📝 Check the logs with: $DOCKER_COMPOSE_CMD logs -f\033[0m"
-echo -e "\033[36m🛑 Stop the bot with: $DOCKER_COMPOSE_CMD down\033[0m"
-echo
-echo -e "\033[33m🔧 Don't forget to configure your Tautulli webhook!\033[0m"
-echo -e "\033[33m   URL: http://followarr:3000/webhook/tautulli\033[0m" 
+fi 
