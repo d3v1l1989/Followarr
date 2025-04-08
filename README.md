@@ -185,23 +185,6 @@ networks:
     external: true
 ```
 
----
-
-## 🧪 Testing
-
-### Command Testing
-Test basic functionality:
-1. `/follow <show name>` - Try following a show
-2. `/list` - Check your followed shows
-3. `/calendar` - View upcoming episodes
-4. `/unfollow <show name>` - Unfollow a show
-
-### Notification Testing
-To test the notification system:
-```bash
-python tests/test_notification.py <show_id>
-```
-
 ## Troubleshooting
 
 ### Common Issues
