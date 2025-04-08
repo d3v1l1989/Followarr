@@ -3,6 +3,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 from typing import List, Dict
 import logging
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,21 @@ class Database:
         self.Session = sessionmaker(bind=self.engine)
 
     def init_db(self):
+        # Explicitly touch the file path first to ensure it can be created/accessed
+        try:
+            db_path_str = self.engine.url.database
+            if db_path_str: # Should always be true for sqlite
+                db_path = Path(db_path_str)
+                logger.info(f"Ensuring database file exists at: {db_path}")
+                db_path.parent.mkdir(parents=True, exist_ok=True) # Ensure directory exists
+                db_path.touch(exist_ok=True) # Create file if not exists
+                logger.info(f"Database file path touched successfully.")
+            else:
+                logger.warning("Could not determine database file path from engine URL.")
+        except Exception as e:
+            logger.error(f"Error touching database file path: {e}", exc_info=True)
+            # We might still want to proceed and let create_all try
+            
         Base.metadata.create_all(self.engine)
 
     def add_subscription(self, user_id: str, show_id: int, show_name: str) -> bool:
