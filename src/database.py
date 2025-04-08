@@ -1,8 +1,7 @@
-from sqlalchemy import create_engine, Column, Integer, String, Table, MetaData, ForeignKey, select
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy import create_engine, Column, Integer, String, select
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
-from typing import List, Dict, Optional
+from typing import List, Dict
 
 Base = declarative_base()
 
@@ -16,34 +15,24 @@ class Subscription(Base):
 
 class Database:
     def __init__(self):
-        # Change the database URL to use aiosqlite
-        database_url = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///data/followarr.db')
-        if database_url.startswith('sqlite:///'):
-            # Convert regular SQLite URL to async SQLite URL
-            database_url = database_url.replace('sqlite:///', 'sqlite+aiosqlite:///', 1)
-            
-        self.engine = create_async_engine(
-            database_url,
-            echo=True
-        )
-        self.async_session = sessionmaker(
-            self.engine, class_=AsyncSession, expire_on_commit=False
-        )
+        database_url = os.getenv('DATABASE_URL', 'sqlite:///data/followarr.db')
+        self.engine = create_engine(database_url)
+        self.Session = sessionmaker(bind=self.engine)
 
-    async def init_db(self):
-        async with self.engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+    def init_db(self):
+        Base.metadata.create_all(self.engine)
 
-    async def add_subscription(self, user_id: str, show_id: int, show_name: str) -> bool:
+    def add_subscription(self, user_id: str, show_id: int, show_name: str) -> bool:
         """Add a show subscription for a user"""
-        async with self.async_session() as session:
+        session = self.Session()
+        try:
             # Check if subscription already exists
-            stmt = select(Subscription).where(
-                Subscription.user_id == str(user_id),
-                Subscription.show_id == show_id
-            )
-            result = await session.execute(stmt)
-            if result.scalar_one_or_none():
+            existing = session.query(Subscription).filter_by(
+                user_id=str(user_id),
+                show_id=show_id
+            ).first()
+            
+            if existing:
                 return False
 
             # Add new subscription
@@ -53,31 +42,35 @@ class Database:
                 show_name=show_name
             )
             session.add(subscription)
-            await session.commit()
+            session.commit()
             return True
+        finally:
+            session.close()
 
-    async def remove_subscription(self, user_id: str, show_id: int) -> bool:
+    def remove_subscription(self, user_id: str, show_id: int) -> bool:
         """Remove a show subscription for a user"""
-        async with self.async_session() as session:
-            stmt = select(Subscription).where(
-                Subscription.user_id == str(user_id),
-                Subscription.show_id == show_id
-            )
-            result = await session.execute(stmt)
-            subscription = result.scalar_one_or_none()
+        session = self.Session()
+        try:
+            subscription = session.query(Subscription).filter_by(
+                user_id=str(user_id),
+                show_id=show_id
+            ).first()
             
             if subscription:
-                await session.delete(subscription)
-                await session.commit()
+                session.delete(subscription)
+                session.commit()
                 return True
             return False
+        finally:
+            session.close()
 
-    async def get_user_subscriptions(self, user_id: str) -> List[Dict]:
+    def get_user_subscriptions(self, user_id: str) -> List[Dict]:
         """Get all shows a user is subscribed to"""
-        async with self.async_session() as session:
-            stmt = select(Subscription).where(Subscription.user_id == str(user_id))
-            result = await session.execute(stmt)
-            subscriptions = result.scalars().all()
+        session = self.Session()
+        try:
+            subscriptions = session.query(Subscription).filter_by(
+                user_id=str(user_id)
+            ).all()
             
             return [
                 {
@@ -86,22 +79,28 @@ class Database:
                 }
                 for sub in subscriptions
             ]
+        finally:
+            session.close()
 
-    async def get_show_subscribers(self, show_id: int) -> List[str]:
+    def get_show_subscribers(self, show_id: int) -> List[str]:
         """Get all users subscribed to a show"""
-        async with self.async_session() as session:
-            stmt = select(Subscription).where(Subscription.show_id == show_id)
-            result = await session.execute(stmt)
-            subscriptions = result.scalars().all()
+        session = self.Session()
+        try:
+            subscriptions = session.query(Subscription).filter_by(
+                show_id=show_id
+            ).all()
             
             return [sub.user_id for sub in subscriptions]
+        finally:
+            session.close()
 
-    async def is_user_subscribed(self, user_id: str, show_id: int) -> bool:
+    def is_user_subscribed(self, user_id: str, show_id: int) -> bool:
         """Check if a user is subscribed to a show"""
-        async with self.async_session() as session:
-            stmt = select(Subscription).where(
-                Subscription.user_id == str(user_id),
-                Subscription.show_id == show_id
-            )
-            result = await session.execute(stmt)
-            return result.scalar_one_or_none() is not None 
+        session = self.Session()
+        try:
+            return session.query(Subscription).filter_by(
+                user_id=str(user_id),
+                show_id=show_id
+            ).first() is not None
+        finally:
+            session.close() 

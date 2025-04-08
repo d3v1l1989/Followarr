@@ -40,14 +40,14 @@ class FollowarrBot(commands.Bot):
     async def setup_hook(self):
         try:
             logger.info("Initializing database...")
-            await self.db.init_db()
+            self.db.init_db()  # Remove await since it's now synchronous
             
             logger.info("Syncing command tree...")
             await self.tree.sync()
             
             # Start webhook server
             logger.info("Starting webhook server...")
-            port = int(os.getenv('PORT', 3000))
+            port = int(os.getenv('WEBHOOK_SERVER_PORT', 3000))
             config = uvicorn.Config(
                 self.webhook_server.app,
                 host="0.0.0.0",
@@ -163,8 +163,8 @@ async def follow(interaction: discord.Interaction, show_name: str):
             await interaction.followup.send(f"Could not find show: {show_name}")
             return
 
-        # Add to database
-        success = await bot.db.add_subscription(
+        # Add to database (now synchronous)
+        success = bot.db.add_subscription(
             str(interaction.user.id),
             show['id'],
             show['seriesName']
