@@ -16,8 +16,14 @@ class Subscription(Base):
 
 class Database:
     def __init__(self):
+        # Change the database URL to use aiosqlite
+        database_url = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///data/followarr.db')
+        if database_url.startswith('sqlite:///'):
+            # Convert regular SQLite URL to async SQLite URL
+            database_url = database_url.replace('sqlite:///', 'sqlite+aiosqlite:///', 1)
+            
         self.engine = create_async_engine(
-            os.getenv('DATABASE_URL', 'sqlite+aiosqlite:///data/followarr.db'),
+            database_url,
             echo=True
         )
         self.async_session = sessionmaker(
