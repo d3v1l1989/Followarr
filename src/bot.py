@@ -276,6 +276,8 @@ class FollowarrBot(commands.Bot):
                     await interaction.followup.send("You're not following any shows!")
                     return
                 
+                logger.info(f"Found {len(shows)} shows to check for episodes")
+                
                 # Get upcoming episodes for each show
                 all_episodes = []
                 total_shows = len(shows)
@@ -283,11 +285,16 @@ class FollowarrBot(commands.Bot):
 
                 for show in shows:
                     shows_checked += 1
-                    logger.info(f"Checking episodes for show {show['name']} ({shows_checked}/{total_shows})")
+                    logger.info(f"Checking episodes for show {show['name']} (ID: {show['id']}) ({shows_checked}/{total_shows})")
                     episodes = await self.tvdb_client.get_upcoming_episodes(show['id'])
                     if episodes:
+                        # Add show name to each episode
+                        for ep in episodes:
+                            ep['show_name'] = show['name']
                         all_episodes.extend(episodes)
                         logger.info(f"Found {len(episodes)} upcoming episodes for {show['name']}")
+                    else:
+                        logger.info(f"No upcoming episodes found for {show['name']}")
 
                 if not all_episodes:
                     await interaction.followup.send("No upcoming episodes found for your shows in the next 3 months!")
@@ -305,15 +312,24 @@ class FollowarrBot(commands.Bot):
                     for i in range(3)
                 ]
                 
+                logger.info(f"Looking for episodes in months: {next_3_months}")
+                
                 for episode in all_episodes:
                     try:
                         air_date = datetime.strptime(episode.get('air_date', ''), "%Y-%m-%d")
                         month_key = air_date.strftime("%Y-%m")
                         week_num = air_date.isocalendar()[1]
                         
+                        logger.debug(f"Processing episode: {episode['show_name']} - {episode['air_date']} (Month: {month_key})")
+                        
                         if month_key in next_3_months:
                             episodes_by_month[month_key][week_num].append(episode)
-                    except (ValueError, TypeError):
+                            logger.debug(f"Added episode to {month_key} week {week_num}")
+                        else:
+                            logger.debug(f"Episode date {month_key} not in next 3 months")
+                    except (ValueError, TypeError) as e:
+                        logger.error(f"Error processing episode date: {e}")
+                        logger.debug(f"Problematic episode data: {episode}")
                         continue
                 
                 # Create calendar embeds

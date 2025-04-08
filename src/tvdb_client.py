@@ -269,6 +269,7 @@ class TVDBClient:
 
         # Get current date for filtering
         current_date = datetime.now().date()
+        logger.debug(f"Current date: {current_date}")
         
         # Filter for upcoming episodes
         upcoming = []
@@ -277,6 +278,7 @@ class TVDBClient:
                 # Try different possible date fields
                 air_date_str = episode.get('aired') or episode.get('firstAired') or episode.get('airDate')
                 if not air_date_str:
+                    logger.debug(f"No air date found for episode: {episode.get('name', 'Unknown')}")
                     continue
                 
                 # Handle different date formats
@@ -290,6 +292,8 @@ class TVDBClient:
                         logger.warning(f"Could not parse air date: {air_date_str}")
                         continue
                 
+                logger.debug(f"Processing episode air date: {air_date_str} -> {air_date}")
+                
                 # Only include episodes that air today or in the future
                 if air_date >= current_date:
                     episode_info = {
@@ -301,6 +305,8 @@ class TVDBClient:
                     }
                     logger.debug(f"Found upcoming episode: S{episode_info['season']:02d}E{episode_info['episode']:02d} - {episode_info['name']} ({air_date_str})")
                     upcoming.append(episode_info)
+                else:
+                    logger.debug(f"Skipping past episode: {episode.get('name', 'Unknown')} ({air_date_str})")
             except (ValueError, TypeError) as e:
                 logger.error(f"Error processing episode: {e}")
                 logger.debug(f"Problematic episode data: {episode}")
