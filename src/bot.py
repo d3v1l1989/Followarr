@@ -98,13 +98,13 @@ class FollowarrBot(commands.Bot):
                     return
                 
                 # Get user's current subscriptions
-                user_shows = self.db.get_user_shows(str(interaction.user.id))
-                if any(s.tvdb_id == show.id for s in user_shows):
+                user_shows = self.db.get_user_subscriptions(str(interaction.user.id))
+                if any(s['id'] == show.id for s in user_shows):
                     await interaction.followup.send(f"You are already following {show.name}!")
                     return
                 
                 # Add the subscription
-                self.db.add_subscription(str(interaction.user.id), interaction.user.name, show.id, show.name)
+                self.db.add_subscription(str(interaction.user.id), show.id, show.name)
                 
                 # Create a rich embed for the response
                 embed = discord.Embed(
