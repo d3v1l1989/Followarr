@@ -68,48 +68,39 @@ class TVDBClient:
                 logger.error(f"Error in _make_request: {str(e)}")
                 raise
 
-    async def search_show(self, name: str) -> Optional[Dict]:
-        logger.info(f"Searching for show: {name}")
+    async def search_show(self, show_name: str) -> Optional[TVShow]:
+        """Search for a TV show by name"""
+        logger.info(f"Searching for show: {show_name}")
+        
         try:
-            # Use the search endpoint
-            response = await self._make_request("search", params={
-                "query": name,
-                "type": "series"
-            })
+            results = await self._search(show_name)
+            if not results:
+                return None
             
-            logger.debug(f"Search response: {response}")
+            # Find the best match
+            show = self._find_best_match(results, show_name)
+            if not show:
+                return None
             
-            if response and "data" in response:
-                shows = response["data"]
-                logger.info(f"Found {len(shows)} results for '{name}'")
-                
-                # Log all found shows
-                for show in shows:
-                    logger.debug(f"Found show: {show.get('name', 'Unknown')} (Type: {show.get('type', 'Unknown')})")
-                
-                # Filter for exact or close matches
-                for show in shows:
-                    if show["type"] == "series":
-                        logger.info(f"Getting details for show: {show.get('name', 'Unknown')}")
-                        series_id = show["tvdb_id"]
-                        details = await self.get_show_details(series_id)
-                        if details:
-                            logger.info(f"Returning details for: {details['seriesName']}")
-                            return details
-                
-                # If no exact match found but we have results, return the first series
-                for show in shows:
-                    if show["type"] == "series":
-                        logger.info(f"Falling back to first match: {show.get('name', 'Unknown')}")
-                        series_id = show["tvdb_id"]
-                        details = await self.get_show_details(series_id)
-                        if details:
-                            return details
+            # Get extended details for the show
+            show_id = show.get('tvdb_id') or show.get('id')
+            if not show_id:
+                return None
             
-            logger.warning(f"No shows found for query: {name}")
-            return None
+            logger.info(f"Getting details for show: {show.get('name')}")
+            show_details = await self._get_show_details(show_id)
+            if not show_details:
+                return None
+            
+            # Add image URL to the show object
+            if 'image_url' not in show_details and 'image' in show_details:
+                show_details['image_url'] = f"https://artworks.thetvdb.com{show_details['image']}"
+            
+            logger.info(f"Returning details for: {show_details.get('name')}")
+            return TVShow(**show_details)
+            
         except Exception as e:
-            logger.error(f"Error searching for show '{name}': {str(e)}")
+            logger.error(f"Error searching for show: {str(e)}")
             return None
 
     async def get_show_details(self, show_id: int) -> Optional[Dict]:
