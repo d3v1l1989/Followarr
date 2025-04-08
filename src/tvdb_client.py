@@ -246,8 +246,8 @@ class TVDBClient:
         """Get upcoming episodes for a show."""
         try:
             # First get the show details to verify it exists
-            show = self.get_show(show_id)
-            if not show:
+            show_data = self._make_request('GET', f'series/{show_id}/extended')
+            if not show_data or 'data' not in show_data:
                 logger.error(f"Show with ID {show_id} not found")
                 return []
 
