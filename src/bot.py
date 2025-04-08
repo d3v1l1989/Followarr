@@ -181,7 +181,9 @@ class FollowarrBot(commands.Bot):
             self.db.init_db()  # Synchronous call
             
             logger.info("Syncing command tree...")
-            await self.tree.sync()
+            # Force sync all commands
+            await self.tree.sync(guild=None)  # None means global commands
+            logger.info("Command tree synced successfully")
             
             # Start webhook server
             logger.info("Starting webhook server...")
@@ -198,6 +200,15 @@ class FollowarrBot(commands.Bot):
         except Exception as e:
             logger.error(f"Error during setup: {str(e)}")
             raise
+
+    async def on_ready(self):
+        logger.info(f"Bot is ready! Logged in as {self.user.name} ({self.user.id})")
+        # Additional sync attempt on ready
+        try:
+            await self.tree.sync()
+            logger.info("Commands synced on ready")
+        except Exception as e:
+            logger.error(f"Error syncing commands on ready: {str(e)}")
 
     async def handle_episode_notification(self, episode_data: dict):
         try:
