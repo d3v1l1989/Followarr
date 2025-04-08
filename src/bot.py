@@ -30,7 +30,7 @@ class FollowarrBot(commands.Bot):
         
         # Initialize clients
         self.tvdb_client = TVDBClient(os.getenv('TVDB_API_KEY'))
-        logger.info("TVDB client initialized")
+        logger.info(f"TVDB client initialized with API key: {os.getenv('TVDB_API_KEY')[:5]}...")
         
         self.tautulli_client = TautulliClient(
             os.getenv('TAUTULLI_URL'),
@@ -44,11 +44,101 @@ class FollowarrBot(commands.Bot):
         # Set up webhook handler
         self.webhook_server = WebhookServer(self.handle_episode_notification)
         logger.info("Webhook server initialized")
-        
+
+        # Set up commands
+        self.setup_commands()
+
+    def setup_commands(self):
+        @self.tree.command(name="follow", description="Follow a TV show")
+        @app_commands.describe(show_name="The name of the show you want to follow")
+        async def follow(interaction: discord.Interaction, show_name: str):
+            try:
+                await interaction.response.defer()
+                
+                logger.info(f"User {interaction.user.name} ({interaction.user.id}) searching for show: {show_name}")
+                logger.info(f"Using TVDB API key: {self.tvdb_client.api_key[:5]}...")
+                
+                # Search for show
+                show = await self.tvdb_client.search_show(show_name)
+                logger.info(f"Search result for '{show_name}': {show}")
+                
+                if not show:
+                    logger.warning(f"No show found for query: {show_name}")
+                    await interaction.followup.send(f"Could not find show: {show_name}")
+                    return
+
+                logger.info(f"Found show: {show['seriesName']} (ID: {show['id']})")
+
+                # Add to database
+                logger.info(f"Adding subscription for user {interaction.user.id} to show {show['id']}")
+                success = self.db.add_subscription(
+                    str(interaction.user.id),
+                    show['id'],
+                    show['seriesName']
+                )
+                
+                if success:
+                    logger.info(f"Successfully added subscription for {interaction.user.name} to {show['seriesName']}")
+                    embed = discord.Embed(
+                        title="Show Followed",
+                        description=f"You are now following: {show['seriesName']}",
+                        color=discord.Color.green()
+                    )
+                    if show.get('overview'):
+                        embed.add_field(name="Overview", value=show['overview'][:1024], inline=False)
+                    if show.get('network'):
+                        embed.add_field(name="Network", value=show['network'], inline=True)
+                    if show.get('status'):
+                        embed.add_field(name="Status", value=show['status'], inline=True)
+                    if show.get('firstAired'):
+                        embed.add_field(name="First Aired", value=show['firstAired'], inline=True)
+                    
+                    await interaction.followup.send(embed=embed)
+                else:
+                    logger.info(f"User {interaction.user.name} is already following {show['seriesName']}")
+                    await interaction.followup.send(f"You are already following: {show['seriesName']}")
+                    
+            except Exception as e:
+                logger.error(f"Error in follow command: {str(e)}", exc_info=True)
+                await interaction.followup.send("An error occurred while processing your request. Please try again later.")
+
+        @self.tree.command(name="list", description="List all shows you're following")
+        async def list_shows(interaction: discord.Interaction):
+            try:
+                await interaction.response.defer()
+                
+                logger.info(f"User {interaction.user.name} requested their show list")
+                
+                # Get user's subscriptions (synchronous call)
+                shows = self.db.get_user_subscriptions(str(interaction.user.id))
+                logger.info(f"Found {len(shows) if shows else 0} shows for user {interaction.user.name}")
+                
+                if not shows:
+                    await interaction.followup.send("You're not following any shows!")
+                    return
+                
+                embed = discord.Embed(
+                    title="Your Followed Shows",
+                    color=discord.Color.blue()
+                )
+                
+                for show in shows:
+                    embed.add_field(
+                        name=show['name'],
+                        value=f"ID: {show['id']}",
+                        inline=False
+                    )
+                
+                await interaction.followup.send(embed=embed)
+                
+            except Exception as e:
+                logger.error(f"Error in list command: {str(e)}", exc_info=True)
+                await interaction.followup.send("An error occurred while processing your request. Please try again later.")
+
     async def setup_hook(self):
         try:
             logger.info("Initializing database...")
-            self.db.init_db()  # Remove await since it's now synchronous
+            self.db.init_db()  # Synchronous call
             
             logger.info("Syncing command tree...")
             await self.tree.sync()
@@ -157,130 +247,10 @@ class FollowarrBot(commands.Bot):
         except Exception as e:
             logger.error(f"Error handling episode notification: {str(e)}")
 
-bot = FollowarrBot()
-
-@bot.tree.command(name="follow", description="Follow a TV show")
-@app_commands.describe(show_name="The name of the show you want to follow")
-async def follow(interaction: discord.Interaction, show_name: str):
-    try:
-        await interaction.response.defer()
-        
-        logger.info(f"User {interaction.user.name} ({interaction.user.id}) searching for show: {show_name}")
-        logger.info(f"TVDB API Key present: {'Yes' if bot.tvdb_client.api_key else 'No'}")
-        
-        # Search for show
-        show = await bot.tvdb_client.search_show(show_name)
-        logger.info(f"Search result for '{show_name}': {show}")
-        
-        if not show:
-            logger.warning(f"No show found for query: {show_name}")
-            await interaction.followup.send(f"Could not find show: {show_name}")
-            return
-
-        logger.info(f"Found show: {show['seriesName']} (ID: {show['id']})")
-
-        # Add to database
-        logger.info(f"Adding subscription for user {interaction.user.id} to show {show['id']}")
-        success = bot.db.add_subscription(
-            str(interaction.user.id),
-            show['id'],
-            show['seriesName']
-        )
-        
-        if success:
-            logger.info(f"Successfully added subscription for {interaction.user.name} to {show['seriesName']}")
-            embed = discord.Embed(
-                title="Show Followed",
-                description=f"You are now following: {show['seriesName']}",
-                color=discord.Color.green()
-            )
-            if show.get('overview'):
-                embed.add_field(name="Overview", value=show['overview'][:1024], inline=False)
-            if show.get('network'):
-                embed.add_field(name="Network", value=show['network'], inline=True)
-            if show.get('status'):
-                embed.add_field(name="Status", value=show['status'], inline=True)
-            if show.get('firstAired'):
-                embed.add_field(name="First Aired", value=show['firstAired'], inline=True)
-            
-            await interaction.followup.send(embed=embed)
-        else:
-            logger.info(f"User {interaction.user.name} is already following {show['seriesName']}")
-            await interaction.followup.send(f"You are already following: {show['seriesName']}")
-            
-    except Exception as e:
-        logger.error(f"Error in follow command: {str(e)}", exc_info=True)
-        await interaction.followup.send("An error occurred while processing your request. Please try again later.")
-
-@bot.tree.command(name="unfollow", description="Unfollow a TV show")
-@app_commands.describe(show_name="The name of the show you want to unfollow")
-async def unfollow(interaction: discord.Interaction, show_name: str):
-    try:
-        await interaction.response.defer()
-        
-        # Search for show
-        show = await bot.tvdb_client.search_show(show_name)
-        if not show:
-            await interaction.followup.send(f"Could not find show: {show_name}")
-            return
-
-        # Remove from database
-        success = await bot.db.remove_subscription(str(interaction.user.id), show['id'])
-        
-        if success:
-            embed = discord.Embed(
-                title="Show Unfollowed",
-                description=f"You are no longer following: {show['seriesName']}",
-                color=discord.Color.red()
-            )
-            await interaction.followup.send(embed=embed)
-        else:
-            await interaction.followup.send(f"You weren't following: {show['seriesName']}")
-            
-    except Exception as e:
-        logger.error(f"Error in unfollow command: {str(e)}")
-        await interaction.followup.send("An error occurred while processing your request. Please try again later.")
-
-@bot.tree.command(name="list", description="List all shows you're following")
-async def list_shows(interaction: discord.Interaction):
-    try:
-        await interaction.response.defer()
-        
-        logger.info(f"User {interaction.user.name} requested their show list")
-        
-        # Get user's subscriptions (now synchronous)
-        shows = bot.db.get_user_subscriptions(str(interaction.user.id))
-        logger.info(f"Found {len(shows)} shows for user {interaction.user.name}")
-        
-        if not shows:
-            await interaction.followup.send("You're not following any shows!")
-            return
-        
-        embed = discord.Embed(
-            title="Your Followed Shows",
-            color=discord.Color.blue()
-        )
-        
-        for show in shows:
-            embed.add_field(
-                name=show['name'],
-                value=f"ID: {show['id']}",
-                inline=False
-            )
-        
-        await interaction.followup.send(embed=embed)
-        
-    except Exception as e:
-        logger.error(f"Error in list command: {str(e)}", exc_info=True)
-        await interaction.followup.send("An error occurred while processing your request. Please try again later.")
-
-@bot.event
-async def on_ready():
-    logger.info(f"Bot is ready! Logged in as {bot.user.name} ({bot.user.id})")
-
 def main():
     try:
         logger.info("Starting bot...")
+        bot = FollowarrBot()
         bot.run(os.getenv('DISCORD_BOT_TOKEN'))
     except Exception as e:
         logger.error(f"Failed to start bot: {str(e)}")
