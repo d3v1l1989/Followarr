@@ -5,6 +5,7 @@ from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
 from datetime import datetime
 import traceback
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -253,44 +254,63 @@ class TVDBClient:
 
             data = response["data"]
             
-            # Debug log the response structure
-            logger.debug(f"Show data keys: {data.keys()}")
+            # Log the full response structure for debugging
+            logger.debug(f"Full response data: {json.dumps(data, indent=2)}")
             
-            # Episodes might be under 'episodes' or 'episode'
-            episodes = data.get("episodes", data.get("episode", []))
+            # Episodes might be under different keys, try them all
+            episodes = []
+            if "episodes" in data:
+                episodes = data["episodes"]
+                logger.info(f"Found episodes under 'episodes' key: {len(episodes)} episodes")
+            elif "episode" in data:
+                episodes = data["episode"]
+                logger.info(f"Found episodes under 'episode' key: {len(episodes)} episodes")
+            
             if not episodes:
-                logger.info(f"No episodes found for show {show_id}")
+                logger.warning(f"No episodes found in response for show {show_id}")
                 return []
             
             # Get current date in YYYY-MM-DD format
             today = datetime.now().strftime("%Y-%m-%d")
+            logger.info(f"Filtering episodes after {today}")
             
             # Filter for upcoming episodes
             upcoming = []
             for ep in episodes:
                 if not isinstance(ep, dict):
+                    logger.warning(f"Skipping invalid episode data: {ep}")
                     continue
                     
+                # Log each episode's air date for debugging
                 air_date = ep.get('aired') or ep.get('firstAired')
-                if not air_date or air_date < today:
+                logger.debug(f"Episode {ep.get('number', '?')}: air_date = {air_date}")
+                
+                if not air_date:
                     continue
                     
-                upcoming.append({
-                    'id': ep.get('id'),
-                    'name': ep.get('name'),
-                    'overview': ep.get('overview'),
-                    'season': ep.get('seasonNumber'),
-                    'episode': ep.get('number') or ep.get('episodeNumber'),
-                    'air_date': air_date,
-                    'runtime': ep.get('runtime'),
-                    'image': ep.get('image'),
-                    'show_name': data.get('name', 'Unknown Show')
-                })
+                if air_date >= today:
+                    upcoming.append({
+                        'id': ep.get('id'),
+                        'name': ep.get('name'),
+                        'overview': ep.get('overview'),
+                        'season': ep.get('seasonNumber'),
+                        'episode': ep.get('number') or ep.get('episodeNumber'),
+                        'air_date': air_date,
+                        'runtime': ep.get('runtime'),
+                        'image': ep.get('image'),
+                        'show_name': data.get('name', 'Unknown Show')
+                    })
+                    logger.info(f"Added upcoming episode: S{ep.get('seasonNumber')}E{ep.get('number')} - {ep.get('name')} ({air_date})")
             
             # Sort by air date
             upcoming.sort(key=lambda x: x['air_date'])
             
             logger.info(f"Found {len(upcoming)} upcoming episodes for show {show_id}")
+            if upcoming:
+                logger.info("Upcoming episodes:")
+                for ep in upcoming:
+                    logger.info(f"- {ep['air_date']}: S{ep['season']}E{ep['episode']} - {ep['name']}")
+            
             return upcoming
             
         except Exception as e:
