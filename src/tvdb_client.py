@@ -253,8 +253,20 @@ class TVDBClient:
             upcoming_episodes = []
             for episode in episodes:
                 try:
-                    # Parse air date
-                    air_date = datetime.fromisoformat(episode['aired'].replace('Z', '+00:00'))
+                    # Parse air date - ensure it's timezone-aware
+                    aired_str = episode.get('aired', '')
+                    if not aired_str:
+                        continue
+                        
+                    # Handle different date formats
+                    if 'T' in aired_str:
+                        # ISO format with time
+                        air_date = datetime.fromisoformat(aired_str.replace('Z', '+00:00'))
+                    else:
+                        # Date only format (YYYY-MM-DD)
+                        air_date = datetime.strptime(aired_str, '%Y-%m-%d')
+                        # Add timezone info
+                        air_date = air_date.replace(tzinfo=timezone.utc)
                     
                     # Only include episodes that haven't aired yet
                     if air_date > now:
