@@ -17,6 +17,14 @@ class TVShow:
     network: Optional[Dict[str, Any]] = None
     image_url: Optional[str] = None
     image: Optional[str] = None
+    slug: Optional[str] = None
+    tvdb_id: Optional[int] = None
+    artworks: Optional[List[Dict[str, Any]]] = None
+    aliases: Optional[List[str]] = None
+    original_language: Optional[str] = None
+    original_network: Optional[Dict[str, Any]] = None
+    year: Optional[str] = None
+    remote_ids: Optional[List[Dict[str, Any]]] = None
 
     def __post_init__(self):
         # Convert string ID to int if necessary
@@ -26,6 +34,24 @@ class TVShow:
         # Handle image URL
         if not self.image_url and self.image:
             self.image_url = f"https://artworks.thetvdb.com{self.image}"
+
+    @classmethod
+    def from_api_response(cls, data: Dict[str, Any]) -> 'TVShow':
+        """Create a TVShow instance from API response data"""
+        # Extract only the fields we care about
+        show_data = {
+            'id': data.get('id'),
+            'name': data.get('name'),
+            'overview': data.get('overview'),
+            'status': data.get('status'),
+            'first_aired': data.get('firstAired'),
+            'network': data.get('network'),
+            'image': data.get('image'),
+            'image_url': f"https://artworks.thetvdb.com{data['image']}" if data.get('image') else None,
+        }
+        # Filter out None values
+        show_data = {k: v for k, v in show_data.items() if v is not None}
+        return cls(**show_data)
 
 class TVDBClient:
     def __init__(self, api_key: Optional[str] = None):
@@ -140,12 +166,8 @@ class TVDBClient:
             if not show_details:
                 return None
                 
-            # Add image URL to the show object
-            if 'image_url' not in show_details and 'image' in show_details:
-                show_details['image_url'] = f"https://artworks.thetvdb.com{show_details['image']}"
-                
-            logger.info(f"Returning details for: {show_details.get('name')}")
-            return TVShow(**show_details)
+            # Create TVShow instance using the factory method
+            return TVShow.from_api_response(show_details)
             
         except Exception as e:
             logger.error(f"Error searching for show: {str(e)}")
