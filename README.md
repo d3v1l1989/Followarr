@@ -152,94 +152,98 @@ docker compose restart
 
 ---
 
-## 📦 Installation
+## 🚀 Installation
 
-### Quick Install with Docker (Recommended)
+Followarr is best installed using Docker and the official image from GitHub Container Registry (ghcr.io).
 
-The easiest way to install Followarr is using Docker and GitHub Container Registry (ghcr.io). We provide installation scripts for both Linux/macOS and Windows:
+### Standard Docker Install (Recommended)
+
+This method gives you the most control.
+
+1.  **Create a Directory:**
+    ```bash
+    mkdir followarr
+    cd followarr
+    ```
+
+2.  **Download Files:**
+    ```bash
+    # Download docker-compose.yml
+    curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docker-compose.yml
+    
+    # Download sample environment file
+    curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/.env.example
+    ```
+
+3.  **Configure Environment:**
+    ```bash
+    # Copy the example file to .env
+    cp .env.example .env
+    
+    # Edit .env with your actual settings (BOT TOKEN, TVDB KEY, etc.)
+    nano .env  # Or use your preferred text editor
+    ```
+    *This is a crucial step! Fill in all required variables.* 
+
+4.  **Start Followarr:**
+    ```bash
+    docker compose up -d
+    ```
+    This will pull the `ghcr.io/d3v1l1989/followarr:edge` image (latest development build) and start the container.
+
+5.  **(Optional) Use a Specific Version:** To use a stable release, edit `docker-compose.yml` and change the image tag from `:edge` to a specific version, like `:v1.0.0` before running `docker compose up -d`.
+
+6.  **Check Logs:**
+    ```bash
+    docker compose logs -f
+    ```
+
+7.  **Updating:**
+    ```bash
+    # Pull the latest image (edge or the specific version in your compose file)
+    docker compose pull
+    
+    # Restart the container with the new image
+    docker compose up -d 
+    ```
+
+### Quick Install with Scripts (Optional)
+
+These scripts automate the download steps (Step 2 & part of Step 3 above). You will still need to manually edit the `.env` file.
 
 #### Linux/macOS
 ```bash
+# Create directory
+mkdir followarr && cd followarr
+
 # Download and run the installation script
 curl -sSL https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.sh -o install.sh
 chmod +x install.sh
 ./install.sh
-```
 
-This script uses the `ghcr.io/d3v1l1989/followarr:edge` image by default.
+# IMPORTANT: Edit the .env file created by the script!
+nano .env
 
-#### Windows
-```powershell
-# Download and run the installation script
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.ps1" -OutFile "install.ps1"
-.\install.ps1
-```
-
-This script uses the `ghcr.io/d3v1l1989/followarr:edge` image by default.
-
-The installation script will:
-1. Check if Docker is installed
-2. Create necessary directories
-3. Set up the .env file from the template
-4. **Offer to open the .env file for editing** (or you can edit it later)
-5. Pull the Docker image
-6. Start the container
-
-### Manual Docker Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/d3v1l1989/Followarr.git
-cd Followarr
-```
-
-2. Set up environment:
-```bash
-cp .env.example .env
-mkdir -p data logs config
-```
-
-3. Configure `.env` with your settings:
-```env
-# Discord Configuration
-DISCORD_BOT_TOKEN=YourToken
-DISCORD_CHANNEL_ID=YourChannelId
-
-# API Keys
-TVDB_API_KEY=YourTVDBKey
-TAUTULLI_API_KEY=YourTautulliKey
-
-# URLs and Ports
-TAUTULLI_URL=http://your-tautulli-server:8181
-DATABASE_URL=sqlite:///data/followarr.db
-WEBHOOK_SERVER_PORT=3000
-
-# Docker Settings
-TZ=Your/Timezone
-UID=1000
-GID=1000
-```
-
-4. Launch with Docker:
-```bash
+# Start the bot
 docker compose up -d
 ```
 
-This will pull the `ghcr.io/d3v1l1989/followarr:edge` image.
+#### Windows (using PowerShell)
+```powershell
+# Create directory
+New-Item -ItemType Directory -Path ".\followarr"
+Set-Location -Path ".\followarr"
 
-### Manual Installation (Without Docker)
+# Download and run the installation script
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.ps1" -OutFile "install.ps1"
+.\install.ps1
 
-1. Install requirements:
-```bash
-pip install -r requirements.txt
+# IMPORTANT: Edit the .env file created by the script!
+notepad .\.env
+
+# Start the bot
+docker compose up -d
 ```
-
-2. Run the bot:
-```bash
-python -m src.bot
-```
-
----
 
 ## 🔧 Configuration
 
