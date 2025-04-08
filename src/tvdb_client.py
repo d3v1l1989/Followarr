@@ -238,4 +238,44 @@ class TVDBClient:
             return None
         except Exception as e:
             print(f"Error getting episode details: {str(e)}")
-            return None 
+            return None
+
+    async def get_upcoming_episodes(self, show_id: int) -> List[Dict]:
+        """Get upcoming episodes for a show"""
+        try:
+            # Get extended series info which includes episodes
+            response = await self._make_request(f"series/{show_id}/extended")
+            if not response or "data" not in response:
+                return []
+
+            data = response["data"]
+            episodes = data.get("episodes", [])
+            
+            # Get current date in YYYY-MM-DD format
+            today = datetime.now().strftime("%Y-%m-%d")
+            
+            # Filter for upcoming episodes
+            upcoming = [
+                {
+                    'id': ep.get('id'),
+                    'name': ep.get('name'),
+                    'overview': ep.get('overview'),
+                    'season': ep.get('seasonNumber'),
+                    'episode': ep.get('number'),
+                    'air_date': ep.get('aired'),
+                    'runtime': ep.get('runtime'),
+                    'image': ep.get('image'),
+                    'show_name': data.get('name')
+                }
+                for ep in episodes
+                if ep.get('aired') and ep.get('aired') >= today
+            ]
+            
+            # Sort by air date
+            upcoming.sort(key=lambda x: x['air_date'])
+            
+            return upcoming
+            
+        except Exception as e:
+            logger.error(f"Error getting upcoming episodes for show {show_id}: {str(e)}")
+            return [] 
