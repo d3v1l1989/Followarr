@@ -15,7 +15,8 @@ class Subscription(Base):
 
 class Database:
     def __init__(self):
-        database_url = os.getenv('DATABASE_URL', 'sqlite:///data/followarr.db')
+        # Use absolute path inside the container for clarity
+        database_url = os.getenv('DATABASE_URL', 'sqlite:////app/data/followarr.db')
         
         # Ensure the directory exists before creating the engine
         db_dir = os.path.dirname(database_url.replace('sqlite:///', ''))
