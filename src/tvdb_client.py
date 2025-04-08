@@ -257,6 +257,9 @@ class TVDBClient:
             logger.error(f"No episodes data found for show {show_id}")
             return []
 
+        # Log the raw response for debugging
+        logger.info(f"Raw episodes response: {episodes_data}")
+        
         # Log the structure of the response
         logger.debug(f"Episodes data structure: {list(episodes_data.keys())}")
         
@@ -265,7 +268,14 @@ class TVDBClient:
         
         if not episodes:
             logger.debug(f"Raw episodes data: {episodes_data}")
-            return []
+            # Try alternative endpoint
+            logger.info("Trying alternative episodes endpoint...")
+            episodes_data = await self._make_request(f"series/{show_id}/episodes")
+            logger.info(f"Alternative endpoint response: {episodes_data}")
+            episodes = episodes_data.get('episodes', [])
+            logger.info(f"Found {len(episodes)} episodes from alternative endpoint")
+            if not episodes:
+                return []
 
         # Get current date for filtering
         current_date = datetime.now().date()
