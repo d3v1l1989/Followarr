@@ -341,6 +341,11 @@ class FollowarrBot(commands.Bot):
                 logger.error("No TVDB ID in notification payload")
                 return
 
+            # Get show details from TVDB
+            show = await self.tvdb_client.search_show(episode_data.get('title', ''))
+            if not show:
+                logger.warning(f"Could not find show details from TVDB for ID: {tvdb_id}")
+
             # Get subscribers for this show
             subscribers = self.db.get_show_subscribers(int(tvdb_id))
             
@@ -383,12 +388,28 @@ class FollowarrBot(commands.Bot):
                     inline=True
                 )
 
-            # Add poster if available
-            if episode_data.get('poster_url'):
+            # Add show status if available from TVDB
+            if show and show.status:
+                status = show.status.get('name', 'Unknown') if isinstance(show.status, dict) else str(show.status)
+                embed.add_field(
+                    name="📊 Show Status",
+                    value=status,
+                    inline=True
+                )
+
+            # Try to add show image in this order:
+            # 1. Show poster from TVDB if available
+            # 2. Episode poster from notification if available
+            # 3. Fall back to no image
+            if show and hasattr(show, 'image_url') and show.image_url:
+                logger.info(f"Using show poster from TVDB: {show.image_url}")
+                embed.set_thumbnail(url=show.image_url)
+            elif episode_data.get('poster_url'):
+                logger.info(f"Using episode poster from notification: {episode_data['poster_url']}")
                 embed.set_thumbnail(url=episode_data['poster_url'])
 
-            # Add footer
-            embed.set_footer(text="Followarr Notification")
+            # Add footer with TVDB attribution
+            embed.set_footer(text="Data provided by TVDB • Followarr Notification")
 
             # Send notification to each subscriber
             for user_id in subscribers:
