@@ -264,7 +264,7 @@ class FollowarrBot(commands.Bot):
                 await interaction.followup.send("An error occurred while processing your request. Please try again later.")
 
         @self.tree.command(name="calendar", description="Show upcoming episodes for your followed shows")
-        async def show_calendar(interaction: discord.Interaction):
+        async def calendar(interaction: discord.Interaction):
             try:
                 await interaction.response.defer()
                 
