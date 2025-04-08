@@ -10,8 +10,8 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - followarr-data:/app/data
+      - followarr-logs:/app/logs
     ports:
       - "${WEBHOOK_SERVER_PORT:-3000}:3000"
     user: "${UID:-1000}:${GID:-1000}"
@@ -34,7 +34,5 @@ networks:
     driver: bridge
 
 volumes:
-  data:
-    driver: local
-  logs:
-    driver: local 
+  followarr-data:
+  followarr-logs: 
