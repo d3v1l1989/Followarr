@@ -10,6 +10,8 @@ from database import Database
 from tvdb_client import TVDBClient
 from tautulli_client import TautulliClient
 from webhook_server import WebhookServer
+import traceback
+from discord.app_commands import CommandTree
 
 # Set up logging
 logging.basicConfig(
@@ -20,13 +22,43 @@ logger = logging.getLogger(__name__)
 
 load_dotenv()
 
+class CustomCommandTree(CommandTree):
+    """Custom command tree with detailed logging"""
+    async def sync(self, *, guild=None):
+        logger.info(f"Starting command sync {'globally' if guild is None else f'for guild {guild.id}'}")
+        try:
+            commands = await super().sync(guild=guild)
+            logger.info(f"Successfully synced {len(commands)} commands")
+            for cmd in commands:
+                logger.info(f"Synced command: {cmd.name}")
+            return commands
+        except Exception as e:
+            logger.error(f"Error syncing commands: {str(e)}")
+            logger.error(traceback.format_exc())
+            raise
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception):
+        logger.error(f"Command error in {interaction.command.name if interaction.command else 'unknown command'}")
+        logger.error(f"Error details: {str(error)}")
+        logger.error(traceback.format_exc())
+        await super().on_error(interaction, error)
+
 class FollowarrBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
-        super().__init__(command_prefix="!", intents=intents)
+        
+        # Use our custom command tree
+        super().__init__(
+            command_prefix="!",
+            intents=intents,
+            tree_cls=CustomCommandTree
+        )
         
         logger.info("Initializing bot components...")
+        
+        # Add debug logging for token and application ID
+        logger.debug(f"Bot token present: {'Yes' if os.getenv('DISCORD_BOT_TOKEN') else 'No'}")
         
         # Initialize clients
         self.tvdb_client = TVDBClient(os.getenv('TVDB_API_KEY'))
@@ -178,12 +210,29 @@ class FollowarrBot(commands.Bot):
     async def setup_hook(self):
         try:
             logger.info("Initializing database...")
-            self.db.init_db()  # Synchronous call
+            self.db.init_db()
             
-            logger.info("Syncing command tree...")
-            # Force sync all commands
-            await self.tree.sync(guild=None)  # None means global commands
-            logger.info("Command tree synced successfully")
+            logger.info("Starting command sync process...")
+            # Log the commands that are about to be synced
+            commands = self.tree.get_commands()
+            logger.info(f"Preparing to sync {len(commands)} commands:")
+            for cmd in commands:
+                logger.info(f"- Command '{cmd.name}': {cmd.description}")
+            
+            # Sync commands
+            try:
+                await self.tree.sync()
+                logger.info("Command tree sync completed successfully")
+            except discord.errors.Forbidden as e:
+                logger.error(f"Forbidden error during sync: {str(e)}")
+                logger.error("Bot might lack required permissions")
+            except discord.errors.HTTPException as e:
+                logger.error(f"HTTP error during sync: {str(e)}")
+                logger.error(f"Status: {e.status}, Code: {e.code}")
+                logger.error(f"Response: {e.text if hasattr(e, 'text') else 'No response text'}")
+            except Exception as e:
+                logger.error(f"Unexpected error during sync: {str(e)}")
+                logger.error(traceback.format_exc())
             
             # Start webhook server
             logger.info("Starting webhook server...")
@@ -199,16 +248,34 @@ class FollowarrBot(commands.Bot):
             
         except Exception as e:
             logger.error(f"Error during setup: {str(e)}")
+            logger.error(traceback.format_exc())
             raise
 
     async def on_ready(self):
         logger.info(f"Bot is ready! Logged in as {self.user.name} ({self.user.id})")
-        # Additional sync attempt on ready
+        logger.info(f"Bot is in {len(self.guilds)} guilds:")
+        for guild in self.guilds:
+            logger.info(f"- {guild.name} (ID: {guild.id})")
+            
         try:
-            await self.tree.sync()
-            logger.info("Commands synced on ready")
+            # Try to sync commands again and log the results
+            commands = await self.tree.sync()
+            logger.info(f"Synced {len(commands)} commands on ready")
+            for cmd in commands:
+                logger.info(f"Command available: {cmd.name}")
         except Exception as e:
             logger.error(f"Error syncing commands on ready: {str(e)}")
+            logger.error(traceback.format_exc())
+
+    async def on_command_error(self, ctx, error):
+        logger.error(f"Command error: {str(error)}")
+        logger.error(traceback.format_exc())
+
+    async def on_interaction(self, interaction: discord.Interaction):
+        logger.info(f"Received interaction: {interaction.type}")
+        if interaction.command:
+            logger.info(f"Command name: {interaction.command.name}")
+        await self.process_interaction(interaction)
 
     async def handle_episode_notification(self, episode_data: dict):
         try:
