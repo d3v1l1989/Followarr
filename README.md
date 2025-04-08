@@ -277,7 +277,6 @@ networks:
 
 ## 🤝 Support
 
-- [Discord Server](https://discord.gg/your-invite-link)
 - [GitHub Issues](https://github.com/d3v1l1989/Followarr/issues)
 
 ## 🔧 Troubleshooting
@@ -354,3 +353,7 @@ Followarr uses semantic versioning (MAJOR.MINOR.PATCH):
 - MAJOR: Breaking changes
 - MINOR: New features, backward compatible
 - PATCH: Bug fixes, backward compatible
+
+## ☕ Support the Project
+
+If you find Followarr useful and would like to support its development, you can buy me a coffee at [ko-fi.com/d3v1l1989](https://ko-fi.com/d3v1l1989). Your support helps keep the project maintained and free for everyone!
