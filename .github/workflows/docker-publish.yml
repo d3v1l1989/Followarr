@@ -59,9 +59,7 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            # push tag for main branch
             type=edge,branch=main
-            # push semver tags
             type=semver,pattern={{version}}
 
       # Build and push Docker image with Buildx (don't push on PR)
