@@ -351,42 +351,62 @@ class FollowarrBot(commands.Bot):
                 await interaction.followup.send("An error occurred while getting your calendar. Please try again later.")
 
     async def setup_hook(self):
+        logger.info("Setting up bot...")
+        
+        # Initialize DB (moved to on_ready)
+        # try:
+        #     self.db.init_db()
+        #     logger.info("Database initialized successfully.")
+        # except Exception as e:
+        #     logger.error(f"Error during setup: {e}", exc_info=True)
+        #     raise  # Re-raise the exception to potentially stop the bot if DB fails
+
+        # Sync commands
         try:
-            self.db.init_db()
-            
-            # Sync commands
-            try:
-                await self.tree.sync()
-            except discord.errors.Forbidden as e:
-                logger.error(f"Forbidden error during sync: {str(e)}")
-            except discord.errors.HTTPException as e:
-                logger.error(f"HTTP error during sync: {str(e)}")
-            except Exception as e:
-                logger.error(f"Unexpected error during sync: {str(e)}")
-                logger.error(traceback.format_exc())
-            
-            # Start webhook server
-            port = int(os.getenv('WEBHOOK_SERVER_PORT', 3000))
-            config = uvicorn.Config(
-                self.webhook_server.app,
-                host="0.0.0.0",
-                port=port,
-                log_level="info"
+            synced_global = await self.tree.sync()
+            logger.info(f"Synced {len(synced_global)} global commands")
+            # Optionally sync guild-specific commands if needed
+            # test_guild = discord.Object(id=YOUR_TEST_GUILD_ID)  # Replace with your guild ID
+            # synced_guild = await self.tree.sync(guild=test_guild)
+            # logger.info(f"Synced {len(synced_guild)} commands to guild {test_guild.id}")
+        except discord.errors.Forbidden as e:
+            logger.error(
+                "Bot lacks 'applications.commands' scope. "
+                "Please re-invite with the correct scope."
             )
-            server = uvicorn.Server(config)
-            self.webhook_task = asyncio.create_task(server.serve())
-            
+            # Decide if you want to exit or continue without commands
+            # await self.close()
+            # return
         except Exception as e:
-            logger.error(f"Error during setup: {str(e)}")
-            logger.error(traceback.format_exc())
-            raise
+            logger.error(f"Command syncing failed: {e}", exc_info=True)
+
+        # Start webhook server
+        logger.info("Starting webhook server...")
+        webhook_port = int(os.getenv('WEBHOOK_SERVER_PORT', 3000))
+        config = uvicorn.Config(self.webhook_server.app, host="0.0.0.0", port=webhook_port, log_level="info")
+        server = uvicorn.Server(config)
+        # Run the server in the background
+        asyncio.create_task(server.serve())
+        logger.info(f"Webhook server started on port {webhook_port}")
+        
+        logger.info("Bot setup complete.")
 
     async def on_ready(self):
-        logger.info(f"Bot is ready! Logged in as {self.user.name} ({self.user.id})")
-        logger.info(f"Bot is in {len(self.guilds)} guilds:")
-        for guild in self.guilds:
-            logger.info(f"- {guild.name} (ID: {guild.id})")
-            
+        logger.info(f'Logged in as {self.user.name} (ID: {self.user.id})')
+        logger.info('Bot is ready and online!')
+        
+        # Initialize DB here
+        try:
+            logger.info("Initializing database...")
+            self.db.init_db()
+            logger.info("Database initialized successfully.")
+        except Exception as e:
+            logger.error(f"Error initializing database in on_ready: {e}", exc_info=True)
+            # Depending on severity, you might want to close the bot
+            # await self.close()
+            # return
+
+        # Optional: Set bot presence
         try:
             commands = await self.tree.sync()
             logger.info(f"Synced {len(commands)} commands on ready")
