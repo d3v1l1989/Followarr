@@ -164,6 +164,9 @@ This is the recommended method to install Followarr.
 
 ### ⚙️ Post-Installation Configuration
 
+*   **Database & Logs:** Followarr uses Docker named volumes (`followarr-data` and `followarr-logs`) by default to store the database and logs. These are managed by Docker and persist even if the container is removed.
+*   **Tautulli Webhook:** Configure Tautulli to send webhook notifications to Followarr for new episodes (see details below).
+
 #### Tautulli Webhook Setup
 
 1.  In Tautulli **Settings** → **Notification Agents**.
@@ -195,42 +198,12 @@ networks:
 ```
 *Remember to restart Tautulli after modifying its compose file.* 
 
---- 
-
-## ⚙️ Usage & Management
-
-### Discord Commands
-- 🔔 `/follow <show name>` - Follow a TV show to receive notifications
-- 🚫 `/unfollow <show name>` - Unfollow a TV show
-- 📋 `/list` - View all your followed shows
-- 📅 `/calendar` - View upcoming episodes for your followed shows
-
-### Basic Operations
-
-*   **Check Logs:**
-    ```bash
-    # Navigate to your followarr directory first
-    docker logs -f followarr
-    ```
-*   **Update Followarr:**
-    ```bash
-    # Navigate to your followarr directory
-    # Pull the latest image (edge or the specific version in your compose file)
-    docker compose pull
-    
-    # Restart the container with the new image
-    docker compose up -d 
-    ```
-*   **Stop Followarr:**
-    ```bash
-    # Navigate to your followarr directory
-    docker compose down
-    ```
 *   **Restart Followarr (e.g., after `.env` changes):**
     ```bash
     # Navigate to your followarr directory
-    docker compose restart
+    docker compose restart followarr
     ```
+*   **View Volume Data (Advanced):** You can inspect the data stored in the named volumes using Docker commands if needed (e.g., `docker volume inspect followarr_followarr-data`).
 
 ## 🔧 Advanced Configuration
 
