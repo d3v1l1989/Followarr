@@ -4,7 +4,7 @@ services:
     build: 
       context: .
       dockerfile: Dockerfile
-    container_name: followarr-bot
+    container_name: followarr
     user: "${UID:-1000}:${GID:-1000}"  # Run as non-root user
     volumes:
       - ./data:/app/data:rw  # Explicit read-write permissions
