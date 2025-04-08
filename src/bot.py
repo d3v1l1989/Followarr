@@ -296,7 +296,7 @@ class FollowarrBot(commands.Bot):
                 
                 for episode in all_episodes:
                     try:
-                        air_date = datetime.strptime(episode['air_date'], "%Y-%m-%d")
+                        air_date = datetime.strptime(episode.get('air_date', ''), "%Y-%m-%d")
                         month_key = air_date.strftime("%Y-%m")
                         week_num = air_date.isocalendar()[1]
                         
@@ -323,11 +323,16 @@ class FollowarrBot(commands.Bot):
                         
                         field_value = ""
                         for ep in week_episodes:
-                            air_date = datetime.strptime(ep['air_date'], "%Y-%m-%d")
-                            field_value += f"**{air_date.strftime('%d %b')}** - {ep['show_name']}\n"
-                            field_value += f"S{ep['season']:02d}E{ep['episode']:02d}"
-                            if ep['name']:
-                                field_value += f" - {ep['name']}"
+                            air_date = datetime.strptime(ep.get('air_date', ''), "%Y-%m-%d")
+                            show_name = ep.get('show_name', 'Unknown Show')
+                            season = ep.get('season', 0)
+                            episode = ep.get('episode', 0)
+                            name = ep.get('name', '')
+                            
+                            field_value += f"**{air_date.strftime('%d %b')}** - {show_name}\n"
+                            field_value += f"S{season:02d}E{episode:02d}"
+                            if name:
+                                field_value += f" - {name}"
                             field_value += "\n\n"
                         
                         embed.add_field(
@@ -355,13 +360,23 @@ class FollowarrBot(commands.Bot):
                 # Add next episode for quick reference
                 if all_episodes:
                     next_ep = all_episodes[0]
-                    air_date = datetime.strptime(next_ep['air_date'], "%Y-%m-%d")
+                    air_date = datetime.strptime(next_ep.get('air_date', ''), "%Y-%m-%d")
+                    show_name = next_ep.get('show_name', 'Unknown Show')
+                    season = next_ep.get('season', 0)
+                    episode = next_ep.get('episode', 0)
+                    name = next_ep.get('name', '')
+                    
+                    next_ep_text = (
+                        f"**{show_name}**\n"
+                        f"S{season:02d}E{episode:02d}"
+                    )
+                    if name:
+                        next_ep_text += f" - {name}"
+                    next_ep_text += f"\nAirs on {air_date.strftime('%d %B %Y')}"
+                    
                     summary_embed.add_field(
                         name="Next Episode",
-                        value=f"**{next_ep['show_name']}**\n"
-                              f"S{next_ep['season']:02d}E{next_ep['episode']:02d}"
-                              f"{f' - {next_ep['name']}' if next_ep['name'] else ''}\n"
-                              f"Airs on {air_date.strftime('%d %B %Y')}",
+                        value=next_ep_text,
                         inline=False
                     )
                 
