@@ -213,27 +213,50 @@ class FollowarrBot(commands.Bot):
                     logger.warning(f"No show found for query: {show_name}")
                     await interaction.followup.send(f"Could not find show: {show_name}")
                     return
-
-                logger.info(f"Found show to unfollow: {show['seriesName']} (ID: {show['id']})")
-
-                # Remove from database
-                success = self.db.remove_subscription(
-                    str(interaction.user.id),
-                    show['id']
-                )
                 
-                if success:
-                    logger.info(f"Successfully removed subscription for {interaction.user.name} from {show['seriesName']}")
+                # Use the TVShow object properties correctly
+                logger.info(f"Found show to unfollow: {show.name} (ID: {show.id})")
+                
+                # Check if user is following the show
+                if not self.db.is_user_subscribed(str(interaction.user.id), show.id):
+                    await interaction.followup.send(f"You are not following {show.name}!")
+                    return
+                
+                # Remove the subscription
+                if self.db.remove_subscription(str(interaction.user.id), show.id):
+                    # Create a nice embed for the response
                     embed = discord.Embed(
-                        title="Show Unfollowed",
-                        description=f"You are no longer following: {show['seriesName']}",
+                        title="❌ Show Unfollowed",
+                        description=f"You are no longer following: **{show.name}**",
                         color=discord.Color.red()
                     )
-                    await interaction.followup.send(embed=embed)
-                else:
-                    logger.info(f"User {interaction.user.name} wasn't following {show['seriesName']}")
-                    await interaction.followup.send(f"You weren't following: {show['seriesName']}")
                     
+                    # Add show poster if available
+                    if hasattr(show, 'image_url') and show.image_url:
+                        try:
+                            embed.set_thumbnail(url=show.image_url)
+                        except Exception as e:
+                            logger.error(f"Error setting thumbnail: {str(e)}")
+                    
+                    # Add basic show info
+                    if show.overview:
+                        # Truncate overview if it's too long
+                        overview = show.overview[:1024] + '...' if len(show.overview) > 1024 else show.overview
+                        embed.add_field(name="Overview", value=overview, inline=False)
+                    
+                    # Add status if available
+                    if show.status:
+                        status = show.status.get('name', 'Unknown') if isinstance(show.status, dict) else str(show.status)
+                        embed.add_field(name="Status", value=status, inline=True)
+                    
+                    # Set footer
+                    embed.set_footer(text="Data provided by TVDB")
+                    
+                    await interaction.followup.send(embed=embed)
+                    logger.info(f"Successfully removed subscription for {interaction.user.name} from {show.name}")
+                else:
+                    await interaction.followup.send(f"Failed to unfollow {show.name}. Please try again.")
+                
             except Exception as e:
                 logger.error(f"Error in unfollow command: {str(e)}", exc_info=True)
                 await interaction.followup.send("An error occurred while processing your request. Please try again later.")
