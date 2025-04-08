@@ -5,11 +5,20 @@ A Discord bot that integrates with Tautulli to notify users about new episodes o
 ## Features
 
 - `/follow <show name>` - Follow a TV show to receive notifications
+  - Shows detailed information about the show
+  - Includes show poster, overview, status, and network info
+  - First aired date and current status
 - `/unfollow <show name>` - Unfollow a TV show
+  - Confirmation message with show details
+  - Show poster and status included
 - `/list` - List all shows you're following
-- Automatic notifications when new episodes are added
-- Integration with Tautulli for media server monitoring
-- TVDB integration for show information
+- Rich notifications when new episodes are added:
+  - Show poster from TVDB
+  - Episode details (season, episode, title)
+  - Episode summary
+  - Air date
+  - Show status
+  - Direct message to followers
 
 ## Requirements
 
@@ -155,17 +164,29 @@ When a new episode is added to your media server, subscribers will receive a Dis
 - 🆕 Show title and notification
 - 📺 Episode number and title
 - 📝 Episode summary (if available)
-- 📅 Air date (if available)
-- 🎥 Video quality (if available)
-- ⏱️ Episode duration
-- 🖼️ Show thumbnail (if available)
+- 📅 Air date
+- 🖼️ Show poster from TVDB
+- 📊 Show status
 - Timestamp of when the episode was added
 
-## Testing Notifications
+The notifications use rich embeds with:
+- Show posters from TVDB
+- Color-coded status indicators
+- Formatted timestamps
+- Detailed episode information
 
+## Testing
+
+### Command Testing
+You can test the bot's basic functionality using these commands:
+1. `/follow <show name>` - Try following a show
+2. `/list` - Verify the show appears in your list
+3. `/unfollow <show name>` - Try unfollowing the show
+
+### Notification Testing
 To test the notification system:
 
-1. First, use the `/list` command in Discord to get the ID of a show you're following
+1. Use the `/list` command in Discord to get the ID of a show you're following
 2. Run the test notification script:
    ```bash
    python tests/test_notification.py <show_id>
@@ -174,9 +195,22 @@ To test the notification system:
    ```bash
    python tests/test_notification.py 403245
    ```
-3. You should see a notification in your Discord channel if everything is set up correctly
+3. You should receive a DM from the bot with the test notification
 
-The test script simulates a Tautulli webhook that would be sent when a new episode is added.
+The test script simulates a webhook that would be sent when a new episode is added to your media server.
+
+## Troubleshooting
+
+### Common Issues
+- If commands don't appear, try removing and re-adding the bot to your server
+- If notifications aren't working, check your Discord privacy settings allow DMs from server members
+- For webhook testing issues, ensure port 3000 is accessible if testing from outside Docker
+
+### Logs
+The bot provides detailed logging for troubleshooting:
+```bash
+docker compose logs -f
+```
 
 ## License
 
