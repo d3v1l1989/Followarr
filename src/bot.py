@@ -106,21 +106,30 @@ class FollowarrBot(commands.Bot):
                 # Add the subscription
                 self.db.add_subscription(str(interaction.user.id), show.id, show.name)
                 
-                # Create a rich embed for the response
+                # Add this debug logging
+                logger.info(f"Creating embed for show: {show.name}")
+                logger.info(f"Show image URL: {getattr(show, 'image_url', 'No image URL')}")
+                
+                # Create embed
                 embed = discord.Embed(
                     title="✅ Show Followed",
                     description=f"You are now following: **{show.name}**",
                     color=discord.Color.green()
                 )
                 
-                # Add show poster if available
-                logger.debug(f"Show image URL: {show.image_url if hasattr(show, 'image_url') else 'None'}")
+                # Try different ways to set the image
                 if hasattr(show, 'image_url') and show.image_url:
-                    logger.debug(f"Setting thumbnail URL: {show.image_url}")
+                    logger.info(f"Attempting to set thumbnail with URL: {show.image_url}")
                     try:
                         embed.set_thumbnail(url=show.image_url)
                     except Exception as e:
                         logger.error(f"Error setting thumbnail: {str(e)}")
+                        # Try setting as main image instead
+                        try:
+                            embed.set_image(url=show.image_url)
+                            logger.info("Successfully set main image instead of thumbnail")
+                        except Exception as e:
+                            logger.error(f"Error setting main image: {str(e)}")
                 
                 # Add show information fields
                 if show.overview:

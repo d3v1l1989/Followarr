@@ -35,12 +35,17 @@ class TVShow:
         if not self.image_url and self.image:
             # Make sure the image path starts with a slash
             image_path = self.image if self.image.startswith('/') else f"/{self.image}"
-            self.image_url = f"https://artworks.thetvdb.com{image_path}"
+            self.image_url = f"https://www.thetvdb.com{image_path}"
 
     @classmethod
     def from_api_response(cls, data: Dict[str, Any]) -> 'TVShow':
         """Create a TVShow instance from API response data"""
-        # Extract only the fields we care about
+        logger.info("Processing show data from API response")
+        
+        # Log the image-related data we receive
+        logger.info(f"Image data received - image: {data.get('image')}")
+        logger.info(f"Artwork data received: {data.get('artworks', [])[:2]}")  # Show first 2 artworks if any
+        
         show_data = {
             'id': data.get('id'),
             'name': data.get('name'),
@@ -52,20 +57,31 @@ class TVShow:
             'image_url': None
         }
 
-        # Handle image URL
+        # Try different image sources
         if data.get('image'):
             image_path = data['image'] if data['image'].startswith('/') else f"/{data['image']}"
-            show_data['image_url'] = f"https://artworks.thetvdb.com{image_path}"
+            show_data['image_url'] = f"https://www.thetvdb.com{image_path}"
+            logger.info(f"Using main image URL: {show_data['image_url']}")
+        
+        # If no main image, try artworks
         elif data.get('artworks'):
-            # Try to find a poster in artworks
+            logger.info(f"No main image, checking {len(data['artworks'])} artworks")
             for artwork in data['artworks']:
                 if artwork.get('type') == 'poster' and artwork.get('image'):
                     image_path = artwork['image'] if artwork['image'].startswith('/') else f"/{artwork['image']}"
-                    show_data['image_url'] = f"https://artworks.thetvdb.com{image_path}"
+                    show_data['image_url'] = f"https://www.thetvdb.com{image_path}"
+                    logger.info(f"Found poster in artworks: {show_data['image_url']}")
                     break
+        
+        # Try thumbnail if no other images found
+        elif data.get('thumbnail'):
+            image_path = data['thumbnail'] if data['thumbnail'].startswith('/') else f"/{data['thumbnail']}"
+            show_data['image_url'] = f"https://www.thetvdb.com{image_path}"
+            logger.info(f"Using thumbnail URL: {show_data['image_url']}")
 
         # Filter out None values
         show_data = {k: v for k, v in show_data.items() if v is not None}
+        logger.info(f"Final image URL set to: {show_data.get('image_url', 'None')}")
         return cls(**show_data)
 
 class TVDBClient:
