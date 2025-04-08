@@ -1,45 +1,45 @@
 FROM python:3.11-slim
 
-WORKDIR /app
+# Define standard UID/GID for the app user, matching common practice and compose default
+ARG UID=1000
+ARG GID=1000
 
-# Install system dependencies (if any) - uncomment if needed
-# Explicitly install SQLite library
-RUN apt-get update && apt-get install -y --no-install-recommends sqlite3 libsqlite3-0 && rm -rf /var/lib/apt/lists/*
+# Create group and user with specified/default UID/GID first
+# Create the group with the specified GID
+RUN if getent group ${GID}; then echo "Group ${GID} exists"; else groupadd -g ${GID} appgroup; fi && \
+    # Create the user with the specified UID and GID, creating home directory
+    useradd --system --create-home --uid ${UID} --gid ${GID} appuser
 
-# Install build dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+# Install system dependencies including SQLite and build tools in one layer
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    sqlite3 \
+    libsqlite3-0 \
     gcc \
     python3-dev \
     libffi-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN groupadd -r botuser && useradd -r -g botuser botuser
-
-# Create necessary directories
-RUN mkdir -p /app/data /app/logs && \
-    chown -R botuser:botuser /app
+# Set the working directory
+WORKDIR /app
 
 # Copy requirements first to leverage Docker cache
-COPY requirements.txt .
+COPY --chown=appuser:appgroup requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the source files
-COPY src/ /app/src/
+# Copy the rest of the application code
+COPY --chown=appuser:appgroup . .
 
-# Copy the main script
-COPY run.py /app/
+# Create/ensure ownership of data and logs directories (even though named volumes are used,
+# internal permissions within the container base layer matter for the mount point)
+RUN mkdir -p /app/data /app/logs && \
+    chown -R appuser:appgroup /app/data /app/logs
 
-# Make the script executable
-RUN chmod +x /app/run.py
-
-# Set Python path to include the app directory
+# Set environment variables
 ENV PYTHONPATH=/app
 
-# Switch to non-root user
-USER botuser
+# Switch to the non-root user
+USER appuser
 
-# Run the bot
+# Command to run the application
 CMD ["python", "run.py"] 
