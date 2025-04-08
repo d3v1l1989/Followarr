@@ -23,7 +23,7 @@ A Discord bot that integrates with Tautulli to notify users about new episodes o
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/Followarr.git
+git clone https://github.com/d3v1l1989/Followarr.git
 cd Followarr
 ```
 
