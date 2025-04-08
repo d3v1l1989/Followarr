@@ -278,13 +278,24 @@ class FollowarrBot(commands.Bot):
                 
                 # Get upcoming episodes for each show
                 all_episodes = []
+                total_shows = len(shows)
+                shows_checked = 0
+
                 for show in shows:
+                    shows_checked += 1
+                    logger.info(f"Checking episodes for show {show['name']} ({shows_checked}/{total_shows})")
                     episodes = await self.tvdb_client.get_upcoming_episodes(show['id'])
-                    all_episodes.extend(episodes)
-                
+                    if episodes:
+                        all_episodes.extend(episodes)
+                        logger.info(f"Found {len(episodes)} upcoming episodes for {show['name']}")
+
                 if not all_episodes:
-                    await interaction.followup.send("No upcoming episodes found for your shows!")
+                    await interaction.followup.send("No upcoming episodes found for your shows in the next 3 months!")
                     return
+
+                # Sort all episodes by air date
+                all_episodes.sort(key=lambda x: x['air_date'])
+                logger.info(f"Total upcoming episodes found: {len(all_episodes)}")
                 
                 # Group episodes by month and week
                 episodes_by_month = defaultdict(lambda: defaultdict(list))

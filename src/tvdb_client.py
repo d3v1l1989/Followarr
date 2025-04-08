@@ -4,6 +4,7 @@ import logging
 from typing import Optional, Dict, List, Any
 from dataclasses import dataclass
 from datetime import datetime
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -243,39 +244,56 @@ class TVDBClient:
     async def get_upcoming_episodes(self, show_id: int) -> List[Dict]:
         """Get upcoming episodes for a show"""
         try:
-            # Get extended series info which includes episodes
+            logger.info(f"Getting upcoming episodes for show ID: {show_id}")
             response = await self._make_request(f"series/{show_id}/extended")
+            
             if not response or "data" not in response:
+                logger.warning(f"No data found for show {show_id}")
                 return []
 
             data = response["data"]
-            episodes = data.get("episodes", [])
+            
+            # Debug log the response structure
+            logger.debug(f"Show data keys: {data.keys()}")
+            
+            # Episodes might be under 'episodes' or 'episode'
+            episodes = data.get("episodes", data.get("episode", []))
+            if not episodes:
+                logger.info(f"No episodes found for show {show_id}")
+                return []
             
             # Get current date in YYYY-MM-DD format
             today = datetime.now().strftime("%Y-%m-%d")
             
             # Filter for upcoming episodes
-            upcoming = [
-                {
+            upcoming = []
+            for ep in episodes:
+                if not isinstance(ep, dict):
+                    continue
+                    
+                air_date = ep.get('aired') or ep.get('firstAired')
+                if not air_date or air_date < today:
+                    continue
+                    
+                upcoming.append({
                     'id': ep.get('id'),
                     'name': ep.get('name'),
                     'overview': ep.get('overview'),
                     'season': ep.get('seasonNumber'),
-                    'episode': ep.get('number'),
-                    'air_date': ep.get('aired'),
+                    'episode': ep.get('number') or ep.get('episodeNumber'),
+                    'air_date': air_date,
                     'runtime': ep.get('runtime'),
                     'image': ep.get('image'),
-                    'show_name': data.get('name')
-                }
-                for ep in episodes
-                if ep.get('aired') and ep.get('aired') >= today
-            ]
+                    'show_name': data.get('name', 'Unknown Show')
+                })
             
             # Sort by air date
             upcoming.sort(key=lambda x: x['air_date'])
             
+            logger.info(f"Found {len(upcoming)} upcoming episodes for show {show_id}")
             return upcoming
             
         except Exception as e:
             logger.error(f"Error getting upcoming episodes for show {show_id}: {str(e)}")
+            logger.error(traceback.format_exc())
             return [] 
