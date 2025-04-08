@@ -271,11 +271,11 @@ class FollowarrBot(commands.Bot):
         logger.error(f"Command error: {str(error)}")
         logger.error(traceback.format_exc())
 
-    async def on_interaction(self, interaction: discord.Interaction):
-        logger.info(f"Received interaction: {interaction.type}")
-        if interaction.command:
-            logger.info(f"Command name: {interaction.command.name}")
-        await self.process_interaction(interaction)
+    # Remove or comment out this method since it's not needed
+    # async def on_interaction(self, interaction: discord.Interaction):
+    #     logger.info(f"Received interaction: {interaction.type}")
+    #     logger.info(f"Command name: {interaction.command.name if interaction.command else 'No command'}")
+    #     await self.process_interaction(interaction)
 
     async def handle_episode_notification(self, episode_data: dict):
         try:
