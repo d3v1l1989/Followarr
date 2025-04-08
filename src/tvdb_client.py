@@ -98,29 +98,22 @@ class TVDBClient:
         logger.info("Initialized TVDB Client")
 
     async def _get_token(self) -> str:
+        """Get authentication token from TVDB API."""
         if self.token:
             return self.token
 
         logger.info("Getting new TVDB token")
-        async with aiohttp.ClientSession() as session:
-            try:
-                async with session.post(
-                    f"{self.base_url}/login",
-                    json={"apikey": self.api_key}
-                ) as response:
-                    response_text = await response.text()
-                    logger.debug(f"Token response: {response_text}")
-                    
-                    if response.status == 200:
-                        data = await response.json()
-                        self.token = data["data"]["token"]
-                        logger.info("Successfully obtained TVDB token")
-                        return self.token
-                    logger.error(f"Failed to get TVDB token. Status: {response.status}, Response: {response_text}")
-                    raise Exception(f"Failed to get TVDB token: {response.status}")
-            except Exception as e:
-                logger.error(f"Error in _get_token: {str(e)}")
-                raise
+        try:
+            response = await self._make_request('POST', 'login', json={"apikey": self.api_key})
+            if response and 'data' in response and 'token' in response['data']:
+                self.token = response['data']['token']
+                logger.info("Successfully obtained TVDB token")
+                return self.token
+            logger.error("Failed to get TVDB token: Invalid response format")
+            raise Exception("Failed to get TVDB token: Invalid response format")
+        except Exception as e:
+            logger.error(f"Error in _get_token: {str(e)}")
+            raise
 
     async def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None) -> Dict:
         """Make an authenticated request to the TVDB API."""
