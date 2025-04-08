@@ -13,7 +13,7 @@ from webhook_server import WebhookServer
 
 # Set up logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
@@ -157,13 +157,20 @@ async def follow(interaction: discord.Interaction, show_name: str):
     try:
         await interaction.response.defer()
         
+        logger.info(f"User {interaction.user.name} ({interaction.user.id}) searching for show: {show_name}")
+        
         # Search for show
         show = await bot.tvdb_client.search_show(show_name)
+        
         if not show:
+            logger.warning(f"No show found for query: {show_name}")
             await interaction.followup.send(f"Could not find show: {show_name}")
             return
 
-        # Add to database (now synchronous)
+        logger.info(f"Found show: {show['seriesName']} (ID: {show['id']})")
+
+        # Add to database
+        logger.debug(f"Adding subscription for user {interaction.user.id} to show {show['id']}")
         success = bot.db.add_subscription(
             str(interaction.user.id),
             show['id'],
@@ -171,21 +178,28 @@ async def follow(interaction: discord.Interaction, show_name: str):
         )
         
         if success:
+            logger.info(f"Successfully added subscription for {interaction.user.name} to {show['seriesName']}")
             embed = discord.Embed(
                 title="Show Followed",
                 description=f"You are now following: {show['seriesName']}",
                 color=discord.Color.green()
             )
             if show.get('overview'):
-                embed.add_field(name="Overview", value=show['overview'], inline=False)
+                embed.add_field(name="Overview", value=show['overview'][:1024], inline=False)
             if show.get('network'):
                 embed.add_field(name="Network", value=show['network'], inline=True)
+            if show.get('status'):
+                embed.add_field(name="Status", value=show['status'], inline=True)
+            if show.get('firstAired'):
+                embed.add_field(name="First Aired", value=show['firstAired'], inline=True)
+            
             await interaction.followup.send(embed=embed)
         else:
+            logger.info(f"User {interaction.user.name} is already following {show['seriesName']}")
             await interaction.followup.send(f"You are already following: {show['seriesName']}")
             
     except Exception as e:
-        logger.error(f"Error in follow command: {str(e)}")
+        logger.error(f"Error in follow command: {str(e)}", exc_info=True)
         await interaction.followup.send("An error occurred while processing your request. Please try again later.")
 
 @bot.tree.command(name="unfollow", description="Unfollow a TV show")
