@@ -1,64 +1,93 @@
-# Followarr
+# 📺 Followarr
 
-A Discord bot that integrates with Tautulli to notify users about new episodes of their favorite TV shows. Users can follow/unfollow shows and receive notifications when new episodes are added to their media server.
+<div align="center">
 
-## Features
+![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
+![Discord](https://img.shields.io/badge/Discord-Bot-7289DA.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-- `/follow <show name>` - Follow a TV show to receive notifications
-  - Shows detailed information about the show
-  - Includes show poster, overview, status, and network info
-  - First aired date and current status
-- `/unfollow <show name>` - Unfollow a TV show
+A Discord bot that integrates with Tautulli to notify users about new episodes of their favorite TV shows.  
+Get notifications when new episodes are added to your media server!
+
+</div>
+
+---
+
+## ✨ Features
+
+### Discord Commands
+- 🔔 `/follow <show name>`
+  - Follow a TV show to receive notifications
+  - Rich embed with show details:
+    - Show poster
+    - Overview
+    - Network info
+    - First aired date
+    - Current status
+
+- 🚫 `/unfollow <show name>`
+  - Unfollow a TV show
   - Confirmation message with show details
-  - Show poster and status included
-- `/list` - List all shows you're following
-- Rich notifications when new episodes are added:
-  - Show poster from TVDB
-  - Episode details (season, episode, title)
-  - Episode summary
-  - Air date
-  - Show status
-  - Direct message to followers
+  - Visual feedback with show poster
 
-## Requirements
+- 📋 `/list`
+  - View all your followed shows
+  - Clean, organized display
+
+### Notifications
+Receive detailed Discord DMs when new episodes are available:
+- 🆕 Show title and episode info
+- 📺 Season and episode numbers
+- 📝 Episode summary
+- 📅 Air date
+- 🖼️ Show poster from TVDB
+- 📊 Show status
+- ⌚ Timestamp
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
 
 - Python 3.11+
 - Discord Bot Token
 - TVDB API Key
 - Tautulli instance with API access
-- Docker (optional)
+- Docker (optional, but recommended)
 
-## Discord Bot Setup
+### 🤖 Discord Bot Setup
 
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Click "New Application" and give it a name
-3. Go to the "Bot" section:
-   - Click "Add Bot"
-   - Under "Privileged Gateway Intents", enable:
-     - MESSAGE CONTENT INTENT
-     - SERVER MEMBERS INTENT
-   - Click "Reset Token" to get your bot token (save this for `.env`)
+1. Visit the [Discord Developer Portal](https://discord.com/developers/applications)
+2. Create a "New Application"
+3. Navigate to the "Bot" section:
+   ```
+   ✓ Add Bot
+   ✓ Enable MESSAGE CONTENT INTENT
+   ✓ Enable SERVER MEMBERS INTENT
+   ```
+4. Get your bot token (keep this secret!)
 
-4. Go to OAuth2 -> URL Generator:
-   - Select these scopes:
-     - `bot`
-     - `applications.commands`
-   - Select these bot permissions:
-     - `Send Messages`
-     - `Send Messages in Threads`
-     - `Embed Links`
-     - `Read Messages/View Channels`
-     - `Use Slash Commands`
-   - Copy the generated URL and use it to add the bot to your server
+5. Configure OAuth2:
+   - Required Scopes:
+     ```
+     • bot
+     • applications.commands
+     ```
+   - Required Permissions:
+     ```
+     • Send Messages
+     • Send Messages in Threads
+     • Embed Links
+     • Read Messages/View Channels
+     • Use Slash Commands
+     ```
 
-5. Get your Channel ID:
-   - Enable Developer Mode in Discord:
-     - Discord Settings -> App Settings -> Advanced -> Developer Mode
-   - Right-click on the channel you want to use
-   - Click "Copy ID"
-   - Save this ID for `.env`
+---
 
-## Installation
+## 📦 Installation
+
+### Using Docker (Recommended)
 
 1. Clone the repository:
 ```bash
@@ -66,60 +95,39 @@ git clone https://github.com/d3v1l1989/Followarr.git
 cd Followarr
 ```
 
-2. Copy the example environment file:
+2. Set up environment:
 ```bash
 cp .env.example .env
-```
-
-3. Set up environment variables:
-```bash
-# Get your user and group IDs (for Docker)
-echo "UID=$(id -u)" >> .env
-echo "GID=$(id -g)" >> .env
-
-# Set your timezone (example for Belgrade)
-echo "TZ=Europe/Belgrade" >> .env
-```
-
-4. Create necessary directories:
-```bash
 mkdir -p data logs
 ```
 
-5. Fill in the remaining environment variables in `.env`:
+3. Configure `.env`:
 ```env
-# Discord Bot Configuration
-DISCORD_BOT_TOKEN=YourDiscordBotToken    # From Discord Developer Portal
-DISCORD_CHANNEL_ID=YourDiscordChannelId  # Right-click channel -> Copy ID
+# Discord Configuration
+DISCORD_BOT_TOKEN=YourToken
+DISCORD_CHANNEL_ID=YourChannelId
 
-# TVDB API Configuration
-TVDB_API_KEY=YourTVDBApiKey
+# API Keys
+TVDB_API_KEY=YourTVDBKey
+TAUTULLI_API_KEY=YourTautulliKey
 
-# Tautulli Configuration
+# URLs and Ports
 TAUTULLI_URL=http://your-tautulli-server:8181
-TAUTULLI_API_KEY=YourTautulliApiKey
-
-# Database Configuration
 DATABASE_URL=sqlite:///data/followarr.db
-
-# Webhook Server Configuration
 WEBHOOK_SERVER_PORT=3000
 
-# Docker Configuration
-TZ=UTC  # Set your timezone (e.g., Europe/Belgrade)
-UID=1000  # Your user ID
-GID=1000  # Your group ID
+# Docker Settings
+TZ=Your/Timezone
+UID=1000
+GID=1000
 ```
 
-## Running the Bot
-
-### Using Docker (Recommended)
-
+4. Launch with Docker:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
-### Without Docker
+### Manual Installation
 
 1. Install requirements:
 ```bash
@@ -131,24 +139,27 @@ pip install -r requirements.txt
 python -m src.bot
 ```
 
-## Setting up Tautulli Webhooks
+---
 
-1. In Tautulli, go to Settings -> Notification Agents
-2. Add a new Webhook agent
-3. Set the Webhook URL:
-   - If Tautulli is running in the same Docker network: `http://followarr:3000/webhook/tautulli`
-   - If Tautulli is running outside Docker: `http://your-server-ip:3000/webhook/tautulli`
-4. Enable notifications for "Recently Added"
+## 🔧 Configuration
 
-## Docker Network Configuration
+### Tautulli Webhook Setup
 
-If you're running Tautulli in Docker as well, you can add it to the same network for easier communication:
+1. In Tautulli Settings → Notification Agents:
+2. Add new Webhook agent
+3. Configure URL:
+   ```
+   Docker: http://followarr:3000/webhook/tautulli
+   Local:  http://your-server-ip:3000/webhook/tautulli
+   ```
+4. Enable "Recently Added" notifications
 
+### Docker Network (Optional)
+
+Add Tautulli to the same network:
 ```yaml
-# In your Tautulli docker-compose.yml
 services:
   tautulli:
-    # ... other Tautulli configuration ...
     networks:
       - followarr-net
 
@@ -156,6 +167,13 @@ networks:
   followarr-net:
     external: true
 ```
+
+---
+
+## 🧪 Testing
+
+### Command Testing
+Test basic functionality:
 
 ## Notifications
 
