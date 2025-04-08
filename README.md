@@ -77,8 +77,6 @@ This method gives you the most control.
 
 2.  **Create `docker-compose.yml`:**
     Create a file named `docker-compose.yml` in the `followarr` directory and paste the following content:
-    <details>
-    <summary>Click to expand docker-compose.yml</summary>
 
     ```yaml
     version: '3.8'
@@ -128,12 +126,9 @@ This method gives you the most control.
       logs:
         driver: local
     ```
-    </details>
 
 3.  **Create and Configure `.env` File:**
     Create a file named `.env` in the `followarr` directory and paste the following content. **Then, edit this file with your actual settings (BOT TOKEN, TVDB KEY, etc.).**
-    <details>
-    <summary>Click to expand .env content</summary>
 
     ```env
     # Discord Bot Configuration
@@ -161,7 +156,6 @@ This method gives you the most control.
     UID=1000  # Your user ID on the host (run 'id -u')
     GID=1000  # Your group ID on the host (run 'id -g')
     ```
-    </details>
     *This is a crucial step! Fill in all required variables.* 
 
 4.  **Start Followarr:**
@@ -171,44 +165,6 @@ This method gives you the most control.
     This will pull the `ghcr.io/d3v1l1989/followarr:edge` image (latest development build) and start the container.
 
 5.  **(Optional) Use a Specific Version:** To use a stable release, edit `docker-compose.yml` (the file you created in Step 2) and change the image tag from `:edge` to a specific version, like `:v1.0.0`, before running `docker compose up -d`.
-
-#### Quick Install with Scripts (Optional)
-
-These scripts automate the creation of the `docker-compose.yml` and `.env` files shown above. You will still need to manually edit the `.env` file with your specific settings.
-
-**Linux/macOS**
-```bash
-# Create directory
-mkdir followarr && cd followarr
-
-# Download and run the installation script
-curl -sSL https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.sh -o install.sh
-chmod +x install.sh
-./install.sh
-
-# IMPORTANT: Edit the .env file created by the script!
-nano .env
-
-# Start the bot
-docker compose up -d
-```
-
-**Windows (using PowerShell)**
-```powershell
-# Create directory
-New-Item -ItemType Directory -Path ".\followarr"
-Set-Location -Path ".\followarr"
-
-# Download and run the installation script
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.ps1" -OutFile "install.ps1"
-.\install.ps1
-
-# IMPORTANT: Edit the .env file created by the script!
-notepad .\.env
-
-# Start the bot
-docker compose up -d
-```
 
 ### ⚙️ Post-Installation Configuration
 
@@ -258,7 +214,7 @@ networks:
 *   **Check Logs:**
     ```bash
     # Navigate to your followarr directory first
-    docker compose logs -f
+    docker logs -f followarr
     ```
 *   **Update Followarr:**
     ```bash
