@@ -2,6 +2,9 @@ from sqlalchemy import create_engine, Column, Integer, String, select
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 from typing import List, Dict
+import logging
+
+logger = logging.getLogger(__name__)
 
 Base = declarative_base()
 
@@ -17,6 +20,7 @@ class Database:
     def __init__(self):
         # Use absolute path inside the container for clarity
         database_url = os.getenv('DATABASE_URL', 'sqlite:////app/data/followarr.db')
+        logger.info(f"Using database URL: {database_url}")
         
         # Ensure the directory exists before creating the engine
         db_dir = os.path.dirname(database_url.replace('sqlite:///', ''))

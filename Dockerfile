@@ -2,6 +2,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# Install system dependencies (if any) - uncomment if needed
+# Explicitly install SQLite library
+RUN apt-get update && apt-get install -y --no-install-recommends sqlite3 libsqlite3-0 && rm -rf /var/lib/apt/lists/*
+
 # Install build dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
