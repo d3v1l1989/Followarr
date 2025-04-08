@@ -63,8 +63,8 @@ if (-not (Test-Path .env)) {
 # Only proceed with Docker operations if .env is properly configured
 $envContent = Get-Content .env -Raw
 if ($envEdited -or (-not ($envContent -match "your_discord_bot_token_here") -and -not ($envContent -match "your_tvdb_api_key_here"))) {
-    Write-Host "`n🐳 Building Docker image..." -ForegroundColor Cyan
-    Invoke-Expression "$dockerComposeCmd build"
+    Write-Host "`n🐳 Building Docker image (no cache)..." -ForegroundColor Cyan
+    Invoke-Expression "$dockerComposeCmd build --no-cache"
 
     Write-Host "🚀 Starting Followarr..." -ForegroundColor Cyan
     Invoke-Expression "$dockerComposeCmd up -d"

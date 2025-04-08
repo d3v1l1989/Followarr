@@ -69,8 +69,8 @@ fi
 
 # Only proceed with Docker operations if .env is properly configured
 if [ "$ENV_EDITED" = true ] || (! grep -q "your_discord_bot_token_here" .env && ! grep -q "your_tvdb_api_key_here" .env); then
-    echo -e "\n\033[36m🐳 Building Docker image...\033[0m"
-    $DOCKER_COMPOSE_CMD build
+    echo -e "\n\033[36m🐳 Building Docker image (no cache)...\033[0m"
+    $DOCKER_COMPOSE_CMD build --no-cache
 
     echo -e "\033[36m🚀 Starting Followarr...\033[0m"
     $DOCKER_COMPOSE_CMD up -d
