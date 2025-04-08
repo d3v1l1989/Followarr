@@ -6,10 +6,10 @@ import uvicorn
 from discord import app_commands
 from discord.ext import commands
 from dotenv import load_dotenv
-from database import Database
-from tvdb_client import TVDBClient
-from tautulli_client import TautulliClient
-from webhook_server import WebhookServer
+from src.database import Database
+from src.tvdb_client import TVDBClient
+from src.tautulli_client import TautulliClient
+from src.webhook_server import WebhookServer
 import traceback
 from discord.app_commands import CommandTree
 from datetime import datetime, timedelta

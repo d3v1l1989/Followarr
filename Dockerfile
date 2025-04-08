@@ -31,6 +31,9 @@ COPY run.py /app/
 # Make the script executable
 RUN chmod +x /app/run.py
 
+# Set Python path to include the app directory
+ENV PYTHONPATH=/app
+
 # Switch to non-root user
 USER botuser
 
