@@ -65,9 +65,7 @@ This section guides you through setting up Followarr.
 
 Followarr is best installed using Docker and the official image from GitHub Container Registry (ghcr.io).
 
-#### Standard Docker Install (Recommended)
-
-This method gives you the most control.
+This is the recommended method to install Followarr.
 
 1.  **Create a Directory:**
     ```bash
@@ -260,43 +258,6 @@ The bot requires several environment variables to be set in the `.env` file:
 
 - [GitHub Issues](https://github.com/d3v1l1989/Followarr/issues)
 
-## 🔧 Troubleshooting
-
-### Common Issues
-
-1. **Bot not responding to commands**
-   - Check if the bot is running (`docker compose ps` or check the process)
-   - Verify the bot token is correct in your `.env` file
-   - Ensure the bot has proper permissions in your Discord server
-
-2. **Tautulli notifications not working**
-   - Verify the webhook URL is correctly set in Tautulli
-   - Check if the webhook server is accessible (port 8000)
-   - Ensure the Tautulli API key is correct
-
-3. **TV Show information not updating**
-   - Check if the TVDB API key is valid
-   - Verify the show exists in TVDB
-   - Check the logs for any API errors
-
-### Logging
-
-Followarr uses different log levels:
-- `INFO`: General operational information
-- `WARNING`: Non-critical issues that don't affect functionality
-- `ERROR`: Critical issues that need attention
-
-You can adjust the log level by setting the `LOG_LEVEL` environment variable:
-```bash
-LOG_LEVEL=INFO  # Default, shows all logs
-LOG_LEVEL=WARNING  # Shows only warnings and errors
-LOG_LEVEL=ERROR  # Shows only errors
-```
-
-## 📝 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
 ## Screenshots
 
 Here are some screenshots of the bot in action:
@@ -352,3 +313,7 @@ Followarr uses semantic versioning (MAJOR.MINOR.PATCH):
 ## ☕ Support the Project
 
 If you find Followarr useful and would like to support its development, you can buy me a coffee at [ko-fi.com/d3v1l1989](https://ko-fi.com/d3v1l1989). Your support helps keep the project maintained and free for everyone!
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
