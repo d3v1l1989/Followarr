@@ -17,40 +17,17 @@ Get notifications when new episodes are added to your media server!
 ## ✨ Features
 
 ### Discord Commands
-- 🔔 `/follow <show name>`
-  - Follow a TV show to receive notifications
-  - Rich embed with show details:
-    - Show poster
-    - Overview
-    - Network info
-    - First aired date
-    - Current status
-
-- 🚫 `/unfollow <show name>`
-  - Unfollow a TV show
-  - Confirmation message with show details
-  - Visual feedback with show poster
-
-- 📋 `/list`
-  - View all your followed shows
-  - Clean, organized display
-
-- 📅 `/calendar`
-  - View upcoming episodes for your followed shows
-  - Organized by month and date
-  - Summary of total episodes
-  - Next episode information
-  - Statistics about your followed shows
+- 🔔 `/follow <show name>` - Follow a TV show to receive notifications
+- 🚫 `/unfollow <show name>` - Unfollow a TV show
+- 📋 `/list` - View all your followed shows
+- 📅 `/calendar` - View upcoming episodes for your followed shows
 
 ### Notifications
 Receive detailed Discord DMs when new episodes are available:
-- 🆕 Show title and episode info
-- 📺 Season and episode numbers
-- 📝 Episode summary
-- 📅 Air date
-- 🖼️ Show poster from TVDB
-- 📊 Show status
-- ⌚ Timestamp
+- Show title, episode info, and summary
+- Season and episode numbers
+- Air date and show poster
+- Show status and timestamp
 
 ---
 
@@ -58,7 +35,6 @@ Receive detailed Discord DMs when new episodes are available:
 
 ### Prerequisites
 
-- Python 3.11+ (for manual installation)
 - Discord Bot Token
 - TVDB API Key
 - Tautulli instance with API access
@@ -67,29 +43,17 @@ Receive detailed Discord DMs when new episodes are available:
 ### 🤖 Discord Bot Setup
 
 1. Visit the [Discord Developer Portal](https://discord.com/developers/applications)
-2. Create a "New Application"
-3. Navigate to the "Bot" section:
+2. Create a "New Application" and add a bot
+3. Enable required intents:
    ```
-   ✓ Add Bot
-   ✓ Enable MESSAGE CONTENT INTENT
-   ✓ Enable SERVER MEMBERS INTENT
+   ✓ MESSAGE CONTENT INTENT
+   ✓ SERVER MEMBERS INTENT
    ```
 4. Get your bot token (keep this secret!)
 
 5. Configure OAuth2:
-   - Required Scopes:
-     ```
-     • bot
-     • applications.commands
-     ```
-   - Required Permissions:
-     ```
-     • Send Messages
-     • Send Messages in Threads
-     • Embed Links
-     • Read Messages/View Channels
-     • Use Slash Commands
-     ```
+   - Required Scopes: `bot`, `applications.commands`
+   - Required Permissions: Send Messages, Embed Links, Read Messages/View Channels, Use Slash Commands
 
 ---
 
@@ -101,22 +65,16 @@ The easiest way to install Followarr is using Docker. We provide installation sc
 
 #### Linux/macOS
 ```bash
-# Download the installation script
+# Download and run the installation script
 curl -sSL https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.sh -o install.sh
-
-# Make it executable
 chmod +x install.sh
-
-# Run the installation script
 ./install.sh
 ```
 
 #### Windows
 ```powershell
-# Download the installation script
+# Download and run the installation script
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.ps1" -OutFile "install.ps1"
-
-# Run the installation script
 .\install.ps1
 ```
 
@@ -142,7 +100,7 @@ cp .env.example .env
 mkdir -p data logs config
 ```
 
-3. Configure `.env`:
+3. Configure `.env` with your settings:
 ```env
 # Discord Configuration
 DISCORD_BOT_TOKEN=YourToken
@@ -212,9 +170,10 @@ The bot requires several environment variables to be set in the `.env` file:
    ```
 4. Enable "Recently Added" notifications
 
-### Docker Network (Optional)
+### Docker Network Configuration
 
-Add Tautulli to the same network:
+**Important**: Make sure Followarr is on the same Docker network as your Tautulli container. If Tautulli is running in Docker, add it to the same network:
+
 ```yaml
 services:
   tautulli:
@@ -232,59 +191,16 @@ networks:
 
 ### Command Testing
 Test basic functionality:
-
 1. `/follow <show name>` - Try following a show
 2. `/list` - Check your followed shows
 3. `/calendar` - View upcoming episodes
 4. `/unfollow <show name>` - Unfollow a show
 
-## Notifications
-
-When a new episode is added to your media server, subscribers will receive a Discord DM containing:
-
-- 🆕 Show title and notification
-- 📺 Episode number and title
-- 📝 Episode summary (if available)
-- 📅 Air date
-- 🖼️ Show poster from TVDB
-- 📊 Show status
-- Timestamp of when the episode was added
-
-The notifications use rich embeds with:
-- Show posters from TVDB
-- Color-coded status indicators
-- Formatted timestamps
-- Detailed episode information
-
-## Calendar Feature
-
-The `/calendar` command provides a comprehensive view of upcoming episodes:
-
-- 📅 Monthly view of upcoming episodes
-- 📺 Show name and episode details
-- 📊 Statistics about your followed shows
-- ⏰ Next episode information
-- 📈 Overview of total episodes and shows
-
-The calendar is organized by date and only shows months with upcoming episodes, keeping the output clean and focused on relevant information.
-
-## Testing
-
 ### Notification Testing
 To test the notification system:
-
-1. Use the `/list` command in Discord to get the ID of a show you're following
-2. Run the test notification script:
-   ```bash
-   python tests/test_notification.py <show_id>
-   ```
-   For example:
-   ```bash
-   python tests/test_notification.py 403245
-   ```
-3. You should receive a DM from the bot with the test notification
-
-The test script simulates a webhook that would be sent when a new episode is added to your media server.
+```bash
+python tests/test_notification.py <show_id>
+```
 
 ## Troubleshooting
 
