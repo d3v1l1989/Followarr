@@ -17,4 +17,4 @@ COPY src/ ./src/
 # Switch to non-root user
 USER botuser
 
-CMD ["python", "-m", "src.bot"] 
+CMD ["python", "src/bot.py"] 
