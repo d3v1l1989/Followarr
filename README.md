@@ -124,8 +124,9 @@ The installation script will:
 1. Check if Docker is installed
 2. Create necessary directories
 3. Set up the .env file from the template
-4. Pull the Docker image
-5. Start the container
+4. **Offer to open the .env file for editing** (or you can edit it later)
+5. Pull the Docker image
+6. Start the container
 
 ### Manual Docker Installation
 
@@ -182,6 +183,23 @@ python -m src.bot
 ---
 
 ## 🔧 Configuration
+
+### Environment Variables
+
+The bot requires several environment variables to be set in the `.env` file:
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `DISCORD_BOT_TOKEN` | Your Discord bot token | Yes |
+| `DISCORD_CHANNEL_ID` | The Discord channel ID for notifications | Yes |
+| `TVDB_API_KEY` | Your TVDB API key | Yes |
+| `TAUTULLI_API_KEY` | Your Tautulli API key | Yes |
+| `TAUTULLI_URL` | URL of your Tautulli instance | Yes |
+| `DATABASE_URL` | SQLite database URL | No (defaults to `sqlite:///data/followarr.db`) |
+| `WEBHOOK_SERVER_PORT` | Port for the webhook server | No (defaults to `3000`) |
+| `TZ` | Your timezone | No (defaults to `UTC`) |
+| `UID` | User ID for Docker | No (defaults to `1000`) |
+| `GID` | Group ID for Docker | No (defaults to `1000`) |
 
 ### Tautulli Webhook Setup
 

@@ -43,6 +43,16 @@ if (-not (Test-Path -Path ".env")) {
     Write-Host "✅ .env file already exists." -ForegroundColor Green
 }
 
+# Ask if user wants to edit the .env file now
+$editEnv = Read-Host "Would you like to edit the .env file now? (y/n)"
+if ($editEnv -eq "y" -or $editEnv -eq "Y") {
+    Write-Host "Opening .env file with Notepad..." -ForegroundColor Cyan
+    notepad .env
+} else {
+    Write-Host "You can edit the .env file later using any text editor." -ForegroundColor Yellow
+    Write-Host "The file is located at: $(Get-Location)\.env" -ForegroundColor Yellow
+}
+
 # Pull the Docker image
 Write-Host "🐳 Pulling Followarr Docker image..." -ForegroundColor Cyan
 docker-compose pull
@@ -57,8 +67,8 @@ if ($containerRunning) {
     Write-Host "✅ Followarr is now running!" -ForegroundColor Green
     Write-Host ""
     Write-Host "📝 Next steps:" -ForegroundColor Cyan
-    Write-Host "1. Edit the .env file with your Discord bot token, TVDB API key, and Tautulli settings" -ForegroundColor Yellow
-    Write-Host "2. Restart the container with: docker-compose restart" -ForegroundColor Yellow
+    Write-Host "1. Make sure your .env file is properly configured with your Discord bot token, TVDB API key, and Tautulli settings" -ForegroundColor Yellow
+    Write-Host "2. If you edited the .env file, restart the container with: docker-compose restart" -ForegroundColor Yellow
     Write-Host "3. Check the logs with: docker-compose logs -f" -ForegroundColor Yellow
     Write-Host ""
     Write-Host "🔗 For more information, visit: https://github.com/d3v1l1989/Followarr" -ForegroundColor Cyan

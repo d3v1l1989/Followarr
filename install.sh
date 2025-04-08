@@ -39,6 +39,25 @@ else
     echo "✅ .env file already exists."
 fi
 
+# Ask if user wants to edit the .env file now
+read -p "Would you like to edit the .env file now? (y/n): " edit_env
+if [[ $edit_env == "y" || $edit_env == "Y" ]]; then
+    # Check for common text editors
+    if command -v nano &> /dev/null; then
+        echo "Opening .env file with nano..."
+        nano .env
+    elif command -v vim &> /dev/null; then
+        echo "Opening .env file with vim..."
+        vim .env
+    else
+        echo "No common text editor found. Please edit the .env file manually."
+        echo "You can use any text editor to edit the file at: $(pwd)/.env"
+    fi
+else
+    echo "You can edit the .env file later using any text editor."
+    echo "The file is located at: $(pwd)/.env"
+fi
+
 # Pull the Docker image
 echo "🐳 Pulling Followarr Docker image..."
 docker-compose pull
@@ -52,8 +71,8 @@ if [ "$(docker ps -q -f name=followarr)" ]; then
     echo "✅ Followarr is now running!"
     echo ""
     echo "📝 Next steps:"
-    echo "1. Edit the .env file with your Discord bot token, TVDB API key, and Tautulli settings"
-    echo "2. Restart the container with: docker-compose restart"
+    echo "1. Make sure your .env file is properly configured with your Discord bot token, TVDB API key, and Tautulli settings"
+    echo "2. If you edited the .env file, restart the container with: docker-compose restart"
     echo "3. Check the logs with: docker-compose logs -f"
     echo ""
     echo "🔗 For more information, visit: https://github.com/d3v1l1989/Followarr"
