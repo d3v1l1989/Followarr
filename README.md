@@ -33,130 +33,39 @@ Receive detailed Discord DMs when new episodes are available:
 
 ## 🚀 Getting Started
 
+This section guides you through setting up Followarr.
+
 ### Prerequisites
 
-- Discord Bot Token
-- TVDB API Key
-- Tautulli instance with API access
-- Docker and Docker Compose
+- Discord Bot Token (See setup below)
+- TVDB API Key ([Get one here](https://thetvdb.com/subscribe))
+- Tautulli instance with API access enabled
+- Docker and Docker Compose installed
 
 ### 🤖 Discord Bot Setup
 
-1. Visit the [Discord Developer Portal](https://discord.com/developers/applications)
-2. Create a "New Application" and add a bot
-3. Enable required intents:
-   ```
-   ✓ MESSAGE CONTENT INTENT
-   ✓ SERVER MEMBERS INTENT
-   ```
-4. Copy your bot token - you'll need it for the configuration
+1.  Visit the [Discord Developer Portal](https://discord.com/developers/applications).
+2.  Create a "New Application" and give it a name (e.g., Followarr).
+3.  Navigate to the "Bot" tab.
+4.  Click "Add Bot" and confirm.
+5.  **Enable Required Intents:**
+    *   Under "Privileged Gateway Intents", enable:
+        *   `MESSAGE CONTENT INTENT`
+        *   `SERVER MEMBERS INTENT` (May be needed depending on future features or specific server setups)
+6.  **Copy Your Bot Token:** Click "Reset Token" (and confirm) to view and copy your bot token. **Treat this like a password!** You'll need it for the `.env` configuration.
+7.  **Invite the Bot:** Go to the "OAuth2" -> "URL Generator" tab.
+    *   Select the `bot` and `applications.commands` scopes.
+    *   Under "Bot Permissions", select:
+        *   `Send Messages`
+        *   `Embed Links`
+        *   `Read Message History` (To process commands)
+    *   Copy the generated URL and paste it into your browser to invite the bot to your server.
 
 ### 🐳 Docker Installation
 
-1. Create a directory for Followarr and navigate to it:
-   ```bash
-   mkdir Followarr
-   cd Followarr
-   ```
-
-2. Download the required files:
-   ```bash
-   # Download docker-compose.yml and .env.example
-   curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docker-compose.yml
-   curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/.env.example
-   
-   # Download the installation script (optional, for guided setup)
-   curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.sh  # For Linux/Mac
-   # OR
-   curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.ps1  # For Windows
-   ```
-
-3. Make the installation script executable (Linux/Mac only, if downloaded):
-   ```bash
-   chmod +x install.sh
-   ```
-
-4. Run the installation script:
-   ```bash
-   ./install.sh  # For Linux/Mac
-   # OR
-   .\install.ps1  # For Windows
-   ```
-
-5. Edit the `.env` file with your configuration:
-   ```bash
-   nano .env  # or use any text editor
-   ```
-
-6. Start the bot:
-   ```bash
-   docker compose up -d
-   ```
-
-   You can check the logs with:
-   ```bash
-   docker compose logs -f
-   ```
-
-### 🔧 Configuration
-
-Edit the `.env` file with your settings:
-
-```env
-# Discord Bot Configuration
-DISCORD_BOT_TOKEN=your_discord_bot_token
-DISCORD_CHANNEL_ID=your_discord_channel_id
-
-# TVDB API Configuration
-TVDB_API_KEY=your_tvdb_api_key
-
-# Tautulli Configuration
-TAUTULLI_URL=http://your-tautulli-server:8181
-TAUTULLI_API_KEY=your_tautulli_api_key
-
-# Webhook Server Configuration
-WEBHOOK_SERVER_PORT=3000
-
-# Logging Configuration
-LOG_LEVEL=INFO
-```
-
-### 🔄 Updating
-
-To update to the latest version:
-
-```bash
-docker compose pull
-docker compose up -d
-```
-
-### 🛑 Stopping the Bot
-
-```bash
-docker compose down
-```
-
-### 📝 Viewing Logs
-
-```bash
-docker compose logs -f
-```
-
-### 🔄 Restarting
-
-After making changes to the `.env` file:
-
-```bash
-docker compose restart
-```
-
----
-
-## 🚀 Installation
-
 Followarr is best installed using Docker and the official image from GitHub Container Registry (ghcr.io).
 
-### Standard Docker Install (Recommended)
+#### Standard Docker Install (Recommended)
 
 This method gives you the most control.
 
@@ -176,7 +85,7 @@ This method gives you the most control.
 
     services:
       followarr:
-        image: ghcr.io/d3v1l1989/followarr:edge
+        image: ghcr.io/d3v1l1989/followarr:edge # Use :edge for latest dev, or a version tag like :v1.0.0
         container_name: followarr
         restart: unless-stopped
         environment:
@@ -184,30 +93,36 @@ This method gives you the most control.
         env_file:
           - .env
         volumes:
-          - ./data:/app/data
-          - ./logs:/app/logs
+          - ./data:/app/data # Stores database
+          - ./logs:/app/logs # Stores log files
         ports:
-          - "${WEBHOOK_SERVER_PORT:-3000}:3000"
-        user: "${UID:-1000}:${GID:-1000}"
+          # Exposes the webhook port (default 3000)
+          - "${WEBHOOK_SERVER_PORT:-3000}:3000" 
+        # Optional: Run as a specific user/group
+        user: "${UID:-1000}:${GID:-1000}" 
         healthcheck:
+          # Checks if the webhook server is responsive
           test: ["CMD", "curl", "-f", "http://localhost:${WEBHOOK_SERVER_PORT:-3000}/health"]
           interval: 30s
           timeout: 10s
           retries: 3
           start_period: 10s
         logging:
+          # Configure Docker log rotation
           driver: "json-file"
           options:
             max-size: "10m"
             max-file: "3"
         networks:
-          - followarr-net
+          - followarr-net # Connect to the dedicated network
 
     networks:
       followarr-net:
-        driver: bridge
+        driver: bridge # Default bridge network
 
     volumes:
+      # Define named volumes (can be managed by Docker)
+      # Alternatively, use host mounts as shown in services section
       data:
         driver: local
       logs:
@@ -223,28 +138,28 @@ This method gives you the most control.
     ```env
     # Discord Bot Configuration
     DISCORD_BOT_TOKEN=YourDiscordBotToken
-    DISCORD_CHANNEL_ID=YourDiscordChannelId
+    DISCORD_CHANNEL_ID=YourDiscordChannelId # Channel ID where bot might post updates (future use)
 
     # TVDB API Configuration
     TVDB_API_KEY=YourTVDBApiKey
 
     # Tautulli Configuration
-    TAUTULLI_URL=http://your-tautulli-server:8181
+    TAUTULLI_URL=http://your-tautulli-server:8181 # URL to access Tautulli
     TAUTULLI_API_KEY=YourTautulliApiKey
 
-    # Database Configuration
+    # Database Configuration (uses SQLite by default)
     DATABASE_URL=sqlite:///data/followarr.db
 
     # Webhook Server Configuration
-    WEBHOOK_SERVER_PORT=3000
+    WEBHOOK_SERVER_PORT=3000 # Port the internal webhook server listens on
 
     # Logging Configuration
     LOG_LEVEL=INFO  # Options: DEBUG, INFO, WARNING, ERROR, CRITICAL
 
     # Docker Configuration
     TZ=UTC  # Set your timezone (e.g., Europe/Belgrade)
-    UID=1000  # Your user ID (run 'id -u' to get it)
-    GID=1000  # Your group ID (run 'id -g' to get it)
+    UID=1000  # Your user ID on the host (run 'id -u')
+    GID=1000  # Your group ID on the host (run 'id -g')
     ```
     </details>
     *This is a crucial step! Fill in all required variables.* 
@@ -257,25 +172,11 @@ This method gives you the most control.
 
 5.  **(Optional) Use a Specific Version:** To use a stable release, edit `docker-compose.yml` (the file you created in Step 2) and change the image tag from `:edge` to a specific version, like `:v1.0.0`, before running `docker compose up -d`.
 
-6.  **Check Logs:**
-    ```bash
-    docker compose logs -f
-    ```
-
-7.  **Updating:**
-    ```bash
-    # Pull the latest image (edge or the specific version in your compose file)
-    docker compose pull
-    
-    # Restart the container with the new image
-    docker compose up -d 
-    ```
-
-### Quick Install with Scripts (Optional)
+#### Quick Install with Scripts (Optional)
 
 These scripts automate the creation of the `docker-compose.yml` and `.env` files shown above. You will still need to manually edit the `.env` file with your specific settings.
 
-#### Linux/macOS
+**Linux/macOS**
 ```bash
 # Create directory
 mkdir followarr && cd followarr
@@ -292,7 +193,7 @@ nano .env
 docker compose up -d
 ```
 
-#### Windows (using PowerShell)
+**Windows (using PowerShell)**
 ```powershell
 # Create directory
 New-Item -ItemType Directory -Path ".\followarr"
@@ -309,50 +210,95 @@ notepad .\.env
 docker compose up -d
 ```
 
-## 🔧 Configuration
+### ⚙️ Post-Installation Configuration
+
+#### Tautulli Webhook Setup
+
+1.  In Tautulli **Settings** → **Notification Agents**.
+2.  Click **Add a new notification agent** → **Webhook**.
+3.  Configure the **Webhook URL**:
+    *   If Followarr and Tautulli are on the **same Docker bridge network**: `http://followarr:3000/webhook/tautulli` (uses Docker DNS)
+    *   If Followarr is on the host or different network: `http://<followarr_host_ip>:3000/webhook/tautulli` (replace `<followarr_host_ip>` with the IP address of the machine running Followarr).
+4.  Under **Triggers**, select `Recently Added`.
+5.  Under **Conditions**, you might want to add a condition like `Media Type is episode` to only trigger for TV shows.
+6.  Save the notification agent.
+
+#### Docker Network (If Tautulli is also in Docker)
+
+For Tautulli to reach Followarr using the `http://followarr:3000` URL, both containers must be on the same custom Docker network. Ensure your Tautulli `docker-compose.yml` connects it to the `followarr-net` network defined in Followarr's `docker-compose.yml`.
+
+Example snippet for Tautulli's `docker-compose.yml`:
+```yaml
+services:
+  tautulli:
+    # ... other Tautulli config ...
+    networks:
+      - followarr-net # Add this line
+      # - other_networks...
+
+networks:
+  followarr-net:
+    external: true # Connect to the existing network created by Followarr
+  # other_networks: ...
+```
+*Remember to restart Tautulli after modifying its compose file.* 
+
+--- 
+
+## ⚙️ Usage & Management
+
+### Discord Commands
+- 🔔 `/follow <show name>` - Follow a TV show to receive notifications
+- 🚫 `/unfollow <show name>` - Unfollow a TV show
+- 📋 `/list` - View all your followed shows
+- 📅 `/calendar` - View upcoming episodes for your followed shows
+
+### Basic Operations
+
+*   **Check Logs:**
+    ```bash
+    # Navigate to your followarr directory first
+    docker compose logs -f
+    ```
+*   **Update Followarr:**
+    ```bash
+    # Navigate to your followarr directory
+    # Pull the latest image (edge or the specific version in your compose file)
+    docker compose pull
+    
+    # Restart the container with the new image
+    docker compose up -d 
+    ```
+*   **Stop Followarr:**
+    ```bash
+    # Navigate to your followarr directory
+    docker compose down
+    ```
+*   **Restart Followarr (e.g., after `.env` changes):**
+    ```bash
+    # Navigate to your followarr directory
+    docker compose restart
+    ```
+
+## 🔧 Advanced Configuration
 
 ### Environment Variables
 
 The bot requires several environment variables to be set in the `.env` file:
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `DISCORD_BOT_TOKEN` | Your Discord bot token | Yes |
-| `DISCORD_CHANNEL_ID` | The Discord channel ID for notifications | Yes |
-| `TVDB_API_KEY` | Your TVDB API key | Yes |
-| `TAUTULLI_API_KEY` | Your Tautulli API key | Yes |
-| `TAUTULLI_URL` | URL of your Tautulli instance | Yes |
-| `DATABASE_URL` | SQLite database URL | No (defaults to `sqlite:///data/followarr.db`) |
-| `WEBHOOK_SERVER_PORT` | Port for the webhook server | No (defaults to `3000`) |
-| `TZ` | Your timezone | No (defaults to `UTC`) |
-| `UID` | User ID for Docker | No (defaults to `1000`) |
-| `GID` | Group ID for Docker | No (defaults to `1000`) |
-
-### Tautulli Webhook Setup
-
-1. In Tautulli Settings → Notification Agents:
-2. Add new Webhook agent
-3. Configure URL:
-   ```
-   Docker: http://followarr:3000/webhook/tautulli
-   Local:  http://your-server-ip:3000/webhook/tautulli
-   ```
-4. Enable "Recently Added" notifications
-
-### Docker Network Configuration
-
-**Important**: Make sure Followarr is on the same Docker network as your Tautulli container. If Tautulli is running in Docker, add it to the same network:
-
-```yaml
-services:
-  tautulli:
-    networks:
-      - followarr-net
-
-networks:
-  followarr-net:
-    external: true
-```
+| Variable              | Description                                       | Required | Default Value                    |
+|-----------------------|---------------------------------------------------|----------|----------------------------------|
+| `DISCORD_BOT_TOKEN`   | Your Discord bot token                            | Yes      | -                                |
+| `DISCORD_CHANNEL_ID`  | Discord channel ID for potential future updates   | Yes      | -                                |
+| `TVDB_API_KEY`        | Your TVDB API key                                 | Yes      | -                                |
+| `TAUTULLI_API_KEY`    | Your Tautulli API key                             | Yes      | -                                |
+| `TAUTULLI_URL`        | URL of your Tautulli instance                     | Yes      | -                                |
+| `DATABASE_URL`        | SQLite database URL                               | No       | `sqlite:///data/followarr.db`  |
+| `WEBHOOK_SERVER_PORT` | Internal port for the webhook server              | No       | `3000`                           |
+| `LOG_LEVEL`           | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) | No | `INFO` |
+| `TZ`                  | Your timezone (e.g., `Europe/Belgrade`)             | No       | `UTC`                            |
+| `UID`                 | User ID for Docker container process              | No       | `1000`                           |
+| `GID`                 | Group ID for Docker container process             | No       | `1000`                           |
 
 ## 🤝 Support
 
