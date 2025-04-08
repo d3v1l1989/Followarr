@@ -28,8 +28,10 @@ class TVShow:
             self.image_url = f"https://artworks.thetvdb.com{self.image}"
 
 class TVDBClient:
-    def __init__(self):
-        self.api_key = os.getenv('TVDB_API_KEY')
+    def __init__(self, api_key: Optional[str] = None):
+        self.api_key = api_key or os.getenv('TVDB_API_KEY')
+        if not self.api_key:
+            raise ValueError("TVDB API key not provided and not found in environment variables")
         self.token = None
         self.base_url = 'https://api4.thetvdb.com/v4'
         logger.info("Initialized TVDB Client")
