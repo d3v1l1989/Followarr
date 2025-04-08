@@ -38,7 +38,7 @@ Receive detailed Discord DMs when new episodes are available:
 - Discord Bot Token
 - TVDB API Key
 - Tautulli instance with API access
-- Docker (for Docker installation)
+- Docker and Docker Compose
 
 ### 🤖 Discord Bot Setup
 
@@ -49,11 +49,101 @@ Receive detailed Discord DMs when new episodes are available:
    ✓ MESSAGE CONTENT INTENT
    ✓ SERVER MEMBERS INTENT
    ```
-4. Get your bot token (keep this secret!)
+4. Copy your bot token - you'll need it for the configuration
 
-5. Configure OAuth2:
-   - Required Scopes: `bot`, `applications.commands`
-   - Required Permissions: Send Messages, Embed Links, Read Messages/View Channels, Use Slash Commands
+### 🐳 Docker Installation
+
+1. Create a directory for Followarr and navigate to it:
+   ```bash
+   mkdir Followarr
+   cd Followarr
+   ```
+
+2. Download the required files:
+   ```bash
+   # Download docker-compose.yml and .env.example
+   curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docker-compose.yml
+   curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/.env.example
+   
+   # Download the installation script
+   curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.sh  # For Linux/Mac
+   # OR
+   curl -O https://raw.githubusercontent.com/d3v1l1989/Followarr/main/install.ps1  # For Windows
+   ```
+
+3. Make the installation script executable (Linux/Mac only):
+   ```bash
+   chmod +x install.sh
+   ```
+
+4. Run the installation script:
+   ```bash
+   ./install.sh  # For Linux/Mac
+   # OR
+   .\install.ps1  # For Windows
+   ```
+
+5. Edit the `.env` file with your configuration:
+   ```bash
+   nano .env  # or use any text editor
+   ```
+
+6. The bot will automatically start after installation. You can check the logs with:
+   ```bash
+   docker compose logs -f
+   ```
+
+### 🔧 Configuration
+
+Edit the `.env` file with your settings:
+
+```env
+# Discord Bot Configuration
+DISCORD_BOT_TOKEN=your_discord_bot_token
+DISCORD_CHANNEL_ID=your_discord_channel_id
+
+# TVDB API Configuration
+TVDB_API_KEY=your_tvdb_api_key
+
+# Tautulli Configuration
+TAUTULLI_URL=http://your-tautulli-server:8181
+TAUTULLI_API_KEY=your_tautulli_api_key
+
+# Webhook Server Configuration
+WEBHOOK_SERVER_PORT=3000
+
+# Logging Configuration
+LOG_LEVEL=INFO
+```
+
+### 🔄 Updating
+
+To update to the latest version:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+### 🛑 Stopping the Bot
+
+```bash
+docker compose down
+```
+
+### 📝 Viewing Logs
+
+```bash
+docker compose logs -f
+```
+
+### 🔄 Restarting
+
+After making changes to the `.env` file:
+
+```bash
+docker compose restart
+```
 
 ---
 
