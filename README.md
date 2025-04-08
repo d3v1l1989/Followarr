@@ -275,22 +275,47 @@ networks:
     external: true
 ```
 
-## Troubleshooting
+## 🤝 Support
+
+- [Discord Server](https://discord.gg/your-invite-link)
+- [GitHub Issues](https://github.com/d3v1l1989/Followarr/issues)
+
+## 🔧 Troubleshooting
 
 ### Common Issues
-- If commands don't appear, try removing and re-adding the bot to your server
-- If notifications aren't working, check your Discord privacy settings allow DMs from server members
-- For webhook testing issues, ensure port 3000 is accessible if testing from outside Docker
 
-### Logs
-The bot provides detailed logging for troubleshooting:
+1. **Bot not responding to commands**
+   - Check if the bot is running (`docker compose ps` or check the process)
+   - Verify the bot token is correct in your `.env` file
+   - Ensure the bot has proper permissions in your Discord server
+
+2. **Tautulli notifications not working**
+   - Verify the webhook URL is correctly set in Tautulli
+   - Check if the webhook server is accessible (port 8000)
+   - Ensure the Tautulli API key is correct
+
+3. **TV Show information not updating**
+   - Check if the TVDB API key is valid
+   - Verify the show exists in TVDB
+   - Check the logs for any API errors
+
+### Logging
+
+Followarr uses different log levels:
+- `INFO`: General operational information
+- `WARNING`: Non-critical issues that don't affect functionality
+- `ERROR`: Critical issues that need attention
+
+You can adjust the log level by setting the `LOG_LEVEL` environment variable:
 ```bash
-docker-compose logs -f
+LOG_LEVEL=INFO  # Default, shows all logs
+LOG_LEVEL=WARNING  # Shows only warnings and errors
+LOG_LEVEL=ERROR  # Shows only errors
 ```
 
-## License
+## 📝 License
 
-MIT License - See [LICENSE](LICENSE) for details 
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Screenshots
 
