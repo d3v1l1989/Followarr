@@ -84,16 +84,58 @@ class FollowarrBot(commands.Bot):
 
             # Create notification embed
             embed = discord.Embed(
-                title=f"New Episode Added: {show_info['title']}",
-                color=discord.Color.green()
+                title=f"🆕 New Episode Added: {show_info['title']}",
+                description="A new episode has been added to your media server!",
+                color=discord.Color.green(),
+                timestamp=discord.utils.utcnow()  # Add timestamp
             )
+
+            # Add episode information
             embed.add_field(
-                name="Episode",
+                name="📺 Episode",
                 value=f"S{episode_data['season_num']:02d}E{episode_data['episode_num']:02d} - {episode_data['title']}",
                 inline=False
             )
+
+            # Add summary if available
             if episode_data.get('summary'):
-                embed.add_field(name="Summary", value=episode_data['summary'], inline=False)
+                embed.add_field(
+                    name="📝 Summary",
+                    value=episode_data['summary'][:1024],  # Discord has a 1024 character limit for field values
+                    inline=False
+                )
+
+            # Add air date if available
+            if episode_data.get('air_date'):
+                embed.add_field(
+                    name="📅 Air Date",
+                    value=episode_data['air_date'],
+                    inline=True
+                )
+
+            # Add quality/resolution if available
+            if episode_data.get('video_resolution'):
+                embed.add_field(
+                    name="🎥 Quality",
+                    value=episode_data['video_resolution'],
+                    inline=True
+                )
+
+            # Add duration if available
+            if episode_data.get('duration'):
+                duration_min = int(episode_data['duration'] / 60)
+                embed.add_field(
+                    name="⏱️ Duration",
+                    value=f"{duration_min} minutes",
+                    inline=True
+                )
+
+            # Add footer
+            embed.set_footer(text="Followarr Notification")
+
+            # Add show image if available
+            if episode_data.get('thumb'):
+                embed.set_thumbnail(url=episode_data['thumb'])
 
             # Send DM to each subscriber
             for user_id in subscribers:
