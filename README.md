@@ -207,21 +207,26 @@ MIT License - See [LICENSE](LICENSE) for details
 Here are some screenshots of the bot in action:
 
 ### Calendar Command
-<img src="docs/screenshots/resized/calendar.png" alt="Calendar Command" width="500"/>
-*View upcoming episodes for your followed shows*
+<img src="docs/screenshots/resized/calendar.png" alt="Calendar Command" width="300"/>
+
+_View upcoming episodes for your followed shows_
 
 ### Follow Command
-<img src="docs/screenshots/resized/follow.png" alt="Follow Command" width="500"/>
-*Follow a new TV show*
+<img src="docs/screenshots/resized/follow.png" alt="Follow Command" width="300"/>
+
+_Follow a new TV show_
 
 ### Unfollow Command
-<img src="docs/screenshots/resized/unfollow.png" alt="Unfollow Command" width="500"/>
-*Unfollow a TV show*
+<img src="docs/screenshots/resized/unfollow.png" alt="Unfollow Command" width="300"/>
+
+_Unfollow a TV show_
 
 ### List Command
-<img src="docs/screenshots/resized/list.png" alt="List Command" width="500"/>
-*View all your followed shows*
+<img src="docs/screenshots/resized/list.png" alt="List Command" width="300"/>
+
+_View all your followed shows_
 
 ### Episode Notification
-<img src="docs/screenshots/resized/notification.png" alt="Episode Notification" width="500"/>
-*Receive notifications for new episodes* 
+<img src="docs/screenshots/resized/notification.png" alt="Episode Notification" width="300"/>
+
+_Receive notifications for new episodes_ 
