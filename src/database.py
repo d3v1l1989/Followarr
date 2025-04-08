@@ -16,6 +16,12 @@ class Subscription(Base):
 class Database:
     def __init__(self):
         database_url = os.getenv('DATABASE_URL', 'sqlite:///data/followarr.db')
+        
+        # Ensure the directory exists before creating the engine
+        db_dir = os.path.dirname(database_url.replace('sqlite:///', ''))
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
+            
         self.engine = create_engine(database_url)
         self.Session = sessionmaker(bind=self.engine)
 
