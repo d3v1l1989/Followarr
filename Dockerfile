@@ -12,9 +12,11 @@ RUN mkdir -p /app/data /app/logs && \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY src/ ./src/
+# Copy the source code
+COPY src/ ./
 
 # Switch to non-root user
 USER botuser
 
-CMD ["python", "src/bot.py"] 
+# Run the bot directly
+CMD ["python", "bot.py"] 
