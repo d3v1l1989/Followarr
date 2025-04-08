@@ -207,21 +207,21 @@ MIT License - See [LICENSE](LICENSE) for details
 Here are some screenshots of the bot in action:
 
 ### Calendar Command
-![Calendar Command](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/calendar.png)
+<img src="docs/screenshots/resized/calendar.png" alt="Calendar Command" width="800"/>
 *View upcoming episodes for your followed shows*
 
 ### Follow Command
-![Follow Command](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/follow.png)
+<img src="docs/screenshots/resized/follow.png" alt="Follow Command" width="800"/>
 *Follow a new TV show*
 
 ### Unfollow Command
-![Unfollow Command](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/unfollow.png)
+<img src="docs/screenshots/resized/unfollow.png" alt="Unfollow Command" width="800"/>
 *Unfollow a TV show*
 
 ### List Command
-![List Command](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/list.png)
+<img src="docs/screenshots/resized/list.png" alt="List Command" width="800"/>
 *View all your followed shows*
 
 ### Episode Notification
-![Episode Notification](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/notification.png)
+<img src="docs/screenshots/resized/notification.png" alt="Episode Notification" width="800"/>
 *Receive notifications for new episodes* 
