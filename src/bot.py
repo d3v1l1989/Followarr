@@ -339,7 +339,8 @@ class FollowarrBot(commands.Bot):
                     month_date = datetime.strptime(month_key, "%Y-%m")
                     
                     embed = discord.Embed(
-                        title=f"📅 Upcoming Episodes - {month_date.strftime('%B %Y')}",
+                        title=f"📅 {month_date.strftime('%B %Y')}",
+                        description="Upcoming episodes for your followed shows",
                         color=discord.Color.blue()
                     )
                     
@@ -357,24 +358,32 @@ class FollowarrBot(commands.Bot):
                             episode = ep.get('episode_number', 0)
                             name = ep.get('name', '')
                             
-                            field_value += f"**{air_date.strftime('%d %b')}** - {show_name}\n"
-                            field_value += f"S{season:02d}E{episode:02d}"
+                            # Format the episode entry with emojis and better spacing
+                            field_value += f"📺 **{show_name}**\n"
+                            field_value += f"📅 {air_date.strftime('%A, %B %d')}\n"
+                            field_value += f"🎬 S{season:02d}E{episode:02d}"
                             if name:
                                 field_value += f" - {name}"
                             field_value += "\n\n"
                         
+                        # Format week number with ordinal suffix
+                        week_suffix = "th" if 10 <= week_num % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(week_num % 10, "th")
                         embed.add_field(
-                            name=f"Week {week_num}",
+                            name=f"📆 Week {week_num}{week_suffix}",
                             value=field_value[:1024] or "No episodes",
                             inline=False
                         )
                     
                     if not embed.fields:
                         embed.add_field(
-                            name="No Episodes",
-                            value="No upcoming episodes this month",
+                            name="📭 No Episodes",
+                            value="No upcoming episodes scheduled for this month",
                             inline=False
                         )
+                    
+                    # Add footer with total episodes for the month
+                    total_month_episodes = sum(len(episodes) for episodes in episodes_by_month[month_key].values())
+                    embed.set_footer(text=f"Total episodes this month: {total_month_episodes}")
                     
                     embeds.append(embed)
                 
@@ -395,16 +404,29 @@ class FollowarrBot(commands.Bot):
                     name = next_ep.get('name', '')
                     
                     next_ep_text = (
-                        f"**{show_name}**\n"
-                        f"S{season:02d}E{episode:02d}"
+                        f"📺 **{show_name}**\n"
+                        f"📅 {air_date.strftime('%A, %B %d, %Y')}\n"
+                        f"🎬 S{season:02d}E{episode:02d}"
                     )
                     if name:
-                        next_ep_text += f" - {name}"
-                    next_ep_text += f"\nAirs on {air_date.strftime('%d %B %Y')}"
+                        next_ep_text += f"\n📝 {name}"
                     
                     summary_embed.add_field(
-                        name="Next Episode",
+                        name="⏰ Next Episode",
                         value=next_ep_text,
+                        inline=False
+                    )
+                    
+                    # Add quick stats
+                    stats_text = (
+                        f"📊 **Statistics**\n"
+                        f"• Total episodes: {len(all_episodes)}\n"
+                        f"• Shows with episodes: {len(set(ep['show_name'] for ep in all_episodes))}\n"
+                        f"• Next 3 months covered"
+                    )
+                    summary_embed.add_field(
+                        name="📈 Overview",
+                        value=stats_text,
                         inline=False
                     )
                 
