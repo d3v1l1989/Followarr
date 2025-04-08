@@ -122,124 +122,104 @@ class TVDBClient:
                 logger.error(f"Error in _get_token: {str(e)}")
                 raise
 
-    async def _make_request(self, endpoint: str, method: str = "GET", params: Dict = None) -> Dict:
-        token = await self._get_token()
-        headers = {"Authorization": f"Bearer {token}"}
-        
-        logger.info(f"Making TVDB API request: {method} {endpoint} with params: {params}")
-        
-        async with aiohttp.ClientSession() as session:
-            try:
+    async def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None) -> Dict:
+        """Make an authenticated request to the TVDB API."""
+        try:
+            token = await self._get_token()
+            headers = {
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
+            }
+            
+            logger.info(f"Making TVDB API request: {method} {endpoint} with params: {params}")
+            
+            async with aiohttp.ClientSession() as session:
                 async with session.request(
                     method,
                     f"{self.base_url}/{endpoint}",
                     headers=headers,
                     params=params
                 ) as response:
-                    response_text = await response.text()
-                    logger.debug(f"TVDB API response: {response_text}")
-                    
-                    if response.status == 401:  # Token expired
-                        logger.info("Token expired, getting new token")
+                    if response.status == 401:
+                        # Token expired, get a new one and retry
                         self.token = None
-                        return await self._make_request(endpoint, method, params)
+                        return await self._make_request(method, endpoint, params)
                     
-                    if response.status == 200:
-                        return await response.json()
+                    response_data = await response.json()
+                    logger.debug(f"TVDB API response: {response_data}")
+                    return response_data
                     
-                    logger.error(f"TVDB API request failed: Status {response.status}, Response: {response_text}")
-                    raise Exception(f"TVDB API request failed: {response.status}")
-            except Exception as e:
-                logger.error(f"Error in _make_request: {str(e)}")
-                raise
+        except Exception as e:
+            logger.error(f"Error making TVDB API request: {e}")
+            logger.error(traceback.format_exc())
+            return None
 
     async def search_series(self, query: str) -> List[Dict]:
-        """Search for TV series by name"""
+        """Search for TV series by name."""
         try:
-            response = await self._make_request("search", params={"query": query, "type": "series"})
-            if response and "data" in response:
-                logger.info(f"Found {len(response['data'])} results for '{query}'")
-                return response["data"]
+            response = await self._make_request('GET', 'search', params={'query': query})
+            if response and 'data' in response:
+                return response['data']
             return []
         except Exception as e:
-            logger.error(f"Error in search_series: {str(e)}")
+            logger.error(f"Error searching series: {e}")
             return []
 
     async def get_series_extended(self, series_id: int) -> Optional[Dict]:
-        """Get extended information for a TV series"""
+        """Get extended information for a TV series."""
         try:
-            response = await self._make_request(f"series/{series_id}/extended")
-            if response and "data" in response:
-                logger.info(f"Successfully got details for: {response['data'].get('name', 'Unknown')}")
-                return response["data"]
+            response = await self._make_request('GET', f'series/{series_id}/extended')
+            if response and 'data' in response:
+                return response['data']
             return None
         except Exception as e:
-            logger.error(f"Error in get_series_extended: {str(e)}")
+            logger.error(f"Error getting series extended info: {e}")
             return None
 
     async def search_show(self, show_name: str) -> Optional[TVShow]:
-        """Search for a TV show by name"""
-        logger.info(f"Searching for show: {show_name}")
-        
+        """Search for a TV show by name."""
         try:
             results = await self.search_series(show_name)
             if not results:
                 return None
             
-            # Find the best match (first result)
-            show = results[0] if results else None
-            if not show:
-                return None
-            
-            # Get extended details for the show
+            # Get the first result
+            show = results[0]
             show_id = show.get('tvdb_id') or show.get('id')
             if not show_id:
                 return None
-                
-            logger.info(f"Getting details for show: {show.get('name')}")
+            
+            # Get extended details
             show_details = await self.get_series_extended(show_id)
             if not show_details:
                 return None
-                
-            # Create TVShow instance using the factory method
+            
             return TVShow.from_api_response(show_details)
             
         except Exception as e:
-            logger.error(f"Error searching for show: {str(e)}")
+            logger.error(f"Error searching for show: {e}")
             return None
 
     async def get_show_details(self, show_id: int) -> Optional[Dict]:
-        logger.info(f"Getting details for show ID: {show_id}")
+        """Get basic details for a TV show."""
         try:
-            response = await self._make_request(f"series/{show_id}/extended")
-            logger.debug(f"Show details response: {response}")
-            
-            if response and "data" in response:
-                show_data = {
-                    'id': response['data']['id'],
-                    'seriesName': response['data']['name'],
-                    'overview': response['data'].get('overview', ''),
-                    'network': response['data'].get('network', ''),
-                    'status': response['data'].get('status', ''),
-                    'firstAired': response['data'].get('firstAired', ''),
-                }
-                logger.info(f"Successfully got details for: {show_data['seriesName']}")
-                return show_data
-            
-            logger.warning(f"No details found for show ID: {show_id}")
+            response = await self._make_request('GET', f'series/{show_id}')
+            if response and 'data' in response:
+                return response['data']
             return None
         except Exception as e:
-            logger.error(f"Error getting show details for ID {show_id}: {str(e)}")
+            logger.error(f"Error getting show details: {e}")
             return None
 
     async def get_episode_details(self, episode_id: int) -> Optional[Dict]:
+        """Get details for a specific episode."""
         try:
-            response = await self._make_request(f"episodes/{episode_id}/extended")
-            if response and "data" in response:
-                return response["data"]
+            response = await self._make_request('GET', f'episodes/{episode_id}/extended')
+            if response and 'data' in response:
+                return response['data']
             return None
         except Exception as e:
-            print(f"Error getting episode details: {str(e)}")
+            logger.error(f"Error getting episode details: {e}")
             return None
 
     async def get_upcoming_episodes(self, show_id: int) -> List[Dict[str, Any]]:
