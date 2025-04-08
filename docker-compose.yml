@@ -1,14 +1,36 @@
 version: '3.8'
 services:
   bot:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: followarr-bot
+    user: "${UID:-1000}:${GID:-1000}"  # Run as non-root user
     volumes:
-      - ./data:/app/data
+      - ./data:/app/data:rw  # Explicit read-write permissions
+      - ./logs:/app/logs:rw  # Add logging volume
     env_file:
       - .env
     ports:
-      - "${PORT:-3000}:${PORT:-3000}"
+      - "${WEBHOOK_SERVER_PORT:-3000}:${WEBHOOK_SERVER_PORT:-3000}"
+    environment:
+      - TZ=${TZ:-UTC}  # Set timezone
+      - PYTHONUNBUFFERED=1  # Ensure Python output is unbuffered
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - followarr-net
+
+networks:
+  followarr-net:
+    driver: bridge
 
 volumes:
-  data: 
+  data:
+    driver: local
+  logs:
+    driver: local 
