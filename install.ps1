@@ -49,8 +49,8 @@ if (-not (Test-Path .env)) {
     Write-Host "✅ .env file already exists" -ForegroundColor Green
 }
 
-Write-Host "`n🐳 Pulling Docker image..." -ForegroundColor Cyan
-Invoke-Expression "$dockerComposeCmd pull"
+Write-Host "`n🐳 Building Docker image..." -ForegroundColor Cyan
+Invoke-Expression "$dockerComposeCmd build"
 
 Write-Host "🚀 Starting Followarr..." -ForegroundColor Cyan
 Invoke-Expression "$dockerComposeCmd up -d"

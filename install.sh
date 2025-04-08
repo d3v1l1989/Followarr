@@ -75,11 +75,9 @@ else
     echo "The file is located at: $(pwd)/.env"
 fi
 
-# Pull the Docker image
-echo -e "\033[36m🐳 Pulling Docker image...\033[0m"
-$DOCKER_COMPOSE_CMD pull
+echo -e "\n\033[36m🐳 Building Docker image...\033[0m"
+$DOCKER_COMPOSE_CMD build
 
-# Start the container
 echo -e "\033[36m🚀 Starting Followarr...\033[0m"
 $DOCKER_COMPOSE_CMD up -d
 
