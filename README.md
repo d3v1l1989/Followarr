@@ -201,3 +201,27 @@ docker-compose logs -f
 ## License
 
 MIT License - See [LICENSE](LICENSE) for details 
+
+## Screenshots
+
+Here are some screenshots of the bot in action:
+
+### Calendar Command
+![Calendar Command](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/calendar.png)
+*View upcoming episodes for your followed shows*
+
+### Follow Command
+![Follow Command](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/follow.png)
+*Follow a new TV show*
+
+### Unfollow Command
+![Unfollow Command](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/unfollow.png)
+*Unfollow a TV show*
+
+### List Command
+![List Command](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/list.png)
+*View all your followed shows*
+
+### Episode Notification
+![Episode Notification](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/notification.png)
+*Receive notifications for new episodes* 
