@@ -26,16 +26,24 @@ class FollowarrBot(commands.Bot):
         intents.message_content = True
         super().__init__(command_prefix="!", intents=intents)
         
+        logger.info("Initializing bot components...")
+        
         # Initialize clients
         self.tvdb_client = TVDBClient(os.getenv('TVDB_API_KEY'))
+        logger.info("TVDB client initialized")
+        
         self.tautulli_client = TautulliClient(
             os.getenv('TAUTULLI_URL'),
             os.getenv('TAUTULLI_API_KEY')
         )
+        logger.info("Tautulli client initialized")
+        
         self.db = Database()
+        logger.info("Database initialized")
         
         # Set up webhook handler
         self.webhook_server = WebhookServer(self.handle_episode_notification)
+        logger.info("Webhook server initialized")
         
     async def setup_hook(self):
         try:
@@ -158,9 +166,11 @@ async def follow(interaction: discord.Interaction, show_name: str):
         await interaction.response.defer()
         
         logger.info(f"User {interaction.user.name} ({interaction.user.id}) searching for show: {show_name}")
+        logger.info(f"TVDB API Key present: {'Yes' if bot.tvdb_client.api_key else 'No'}")
         
         # Search for show
         show = await bot.tvdb_client.search_show(show_name)
+        logger.info(f"Search result for '{show_name}': {show}")
         
         if not show:
             logger.warning(f"No show found for query: {show_name}")
@@ -170,7 +180,7 @@ async def follow(interaction: discord.Interaction, show_name: str):
         logger.info(f"Found show: {show['seriesName']} (ID: {show['id']})")
 
         # Add to database
-        logger.debug(f"Adding subscription for user {interaction.user.id} to show {show['id']}")
+        logger.info(f"Adding subscription for user {interaction.user.id} to show {show['id']}")
         success = bot.db.add_subscription(
             str(interaction.user.id),
             show['id'],
@@ -236,7 +246,12 @@ async def list_shows(interaction: discord.Interaction):
     try:
         await interaction.response.defer()
         
-        shows = await bot.db.get_user_subscriptions(str(interaction.user.id))
+        logger.info(f"User {interaction.user.name} requested their show list")
+        
+        # Get user's subscriptions (now synchronous)
+        shows = bot.db.get_user_subscriptions(str(interaction.user.id))
+        logger.info(f"Found {len(shows)} shows for user {interaction.user.name}")
+        
         if not shows:
             await interaction.followup.send("You're not following any shows!")
             return
@@ -256,7 +271,7 @@ async def list_shows(interaction: discord.Interaction):
         await interaction.followup.send(embed=embed)
         
     except Exception as e:
-        logger.error(f"Error in list command: {str(e)}")
+        logger.error(f"Error in list command: {str(e)}", exc_info=True)
         await interaction.followup.send("An error occurred while processing your request. Please try again later.")
 
 @bot.event
