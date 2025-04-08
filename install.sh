@@ -14,12 +14,19 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Check if Docker Compose is installed
-if ! command -v docker-compose &> /dev/null; then
+# Check for Docker Compose (both formats)
+if command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker-compose"
+elif docker compose version &> /dev/null; then
+    DOCKER_COMPOSE_CMD="docker compose"
+else
     echo "❌ Docker Compose is not installed. Please install Docker Compose first."
     echo "Visit https://docs.docker.com/compose/install/ for installation instructions."
     exit 1
 fi
+
+echo "✅ Docker and Docker Compose are installed"
+echo ""
 
 # Create necessary directories
 echo "📁 Creating necessary directories..."
@@ -28,12 +35,21 @@ mkdir -p data logs config
 # Check if .env file exists
 if [ ! -f .env ]; then
     echo "📝 Creating .env file from template..."
-    if [ -f .env.example ]; then
-        cp .env.example .env
-        echo "✅ Created .env file. Please edit it with your configuration."
-    else
-        echo "❌ .env.example file not found. Please create a .env file manually."
-        exit 1
+    cp .env.example .env
+    echo "⚠️  Please edit the .env file with your configuration"
+    echo "   You can do this now or later"
+    read -p "   Would you like to edit the .env file now? (y/n) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        if command -v nano &> /dev/null; then
+            echo "Opening .env file with nano..."
+            nano .env
+        elif command -v vim &> /dev/null; then
+            echo "Opening .env file with vim..."
+            vim .env
+        else
+            echo "❌ No suitable text editor found. Please edit .env manually."
+        fi
     fi
 else
     echo "✅ .env file already exists."
@@ -59,12 +75,12 @@ else
 fi
 
 # Pull the Docker image
-echo "🐳 Pulling Followarr Docker image..."
-docker-compose pull
+echo "🐳 Pulling Docker image..."
+$DOCKER_COMPOSE_CMD pull
 
 # Start the container
 echo "🚀 Starting Followarr..."
-docker-compose up -d
+$DOCKER_COMPOSE_CMD up -d
 
 # Check if the container is running
 if [ "$(docker ps -q -f name=followarr)" ]; then
@@ -72,11 +88,19 @@ if [ "$(docker ps -q -f name=followarr)" ]; then
     echo ""
     echo "📝 Next steps:"
     echo "1. Make sure your .env file is properly configured with your Discord bot token, TVDB API key, and Tautulli settings"
-    echo "2. If you edited the .env file, restart the container with: docker-compose restart"
-    echo "3. Check the logs with: docker-compose logs -f"
+    echo "2. If you edited the .env file, restart the container with: $DOCKER_COMPOSE_CMD restart"
+    echo "3. Check the logs with: $DOCKER_COMPOSE_CMD logs -f"
     echo ""
     echo "🔗 For more information, visit: https://github.com/d3v1l1989/Followarr"
 else
-    echo "❌ Failed to start Followarr. Check the logs with: docker-compose logs"
+    echo "❌ Failed to start Followarr. Check the logs with: $DOCKER_COMPOSE_CMD logs"
     exit 1
-fi 
+fi
+
+echo
+echo "✅ Installation complete!"
+echo "📝 Check the logs with: $DOCKER_COMPOSE_CMD logs -f"
+echo "🛑 Stop the bot with: $DOCKER_COMPOSE_CMD down"
+echo
+echo "🔧 Don't forget to configure your Tautulli webhook!"
+echo "   URL: http://followarr:3000/webhook/tautulli" 
