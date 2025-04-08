@@ -1,0 +1,219 @@
+import os
+import discord
+import logging
+import asyncio
+import uvicorn
+from discord import app_commands
+from discord.ext import commands
+from dotenv import load_dotenv
+from .tvdb_client import TVDBClient
+from .tautulli_client import TautulliClient
+from .database import Database
+from .webhook_server import WebhookServer
+
+# Set up logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+load_dotenv()
+
+class FollowarrBot(commands.Bot):
+    def __init__(self):
+        intents = discord.Intents.default()
+        intents.message_content = True
+        super().__init__(command_prefix="!", intents=intents)
+        
+        # Initialize clients
+        self.tvdb_client = TVDBClient(os.getenv('TVDB_API_KEY'))
+        self.tautulli_client = TautulliClient(
+            os.getenv('TAUTULLI_URL'),
+            os.getenv('TAUTULLI_API_KEY')
+        )
+        self.db = Database()
+        
+        # Set up webhook handler
+        self.webhook_server = WebhookServer(self.handle_episode_notification)
+        
+    async def setup_hook(self):
+        try:
+            logger.info("Initializing database...")
+            await self.db.init_db()
+            
+            logger.info("Syncing command tree...")
+            await self.tree.sync()
+            
+            # Start webhook server
+            logger.info("Starting webhook server...")
+            port = int(os.getenv('PORT', 3000))
+            config = uvicorn.Config(
+                self.webhook_server.app,
+                host="0.0.0.0",
+                port=port,
+                log_level="info"
+            )
+            server = uvicorn.Server(config)
+            self.webhook_task = asyncio.create_task(server.serve())
+            
+        except Exception as e:
+            logger.error(f"Error during setup: {str(e)}")
+            raise
+
+    async def handle_episode_notification(self, episode_data: dict):
+        try:
+            # Get show details from Tautulli
+            show_info = await self.tautulli_client.get_show_info(episode_data['grandparent_rating_key'])
+            if not show_info:
+                logger.error("Could not get show info from Tautulli")
+                return
+
+            # Get TVDB show ID
+            tvdb_show = await self.tvdb_client.search_show(show_info['title'])
+            if not tvdb_show:
+                logger.error(f"Could not find show on TVDB: {show_info['title']}")
+                return
+
+            # Get subscribers for this show
+            subscribers = await self.db.get_show_subscribers(tvdb_show['id'])
+            
+            if not subscribers:
+                logger.info(f"No subscribers for show: {show_info['title']}")
+                return
+
+            # Create notification embed
+            embed = discord.Embed(
+                title=f"New Episode Added: {show_info['title']}",
+                color=discord.Color.green()
+            )
+            embed.add_field(
+                name="Episode",
+                value=f"S{episode_data['season_num']:02d}E{episode_data['episode_num']:02d} - {episode_data['title']}",
+                inline=False
+            )
+            if episode_data.get('summary'):
+                embed.add_field(name="Summary", value=episode_data['summary'], inline=False)
+
+            # Send DM to each subscriber
+            for user_id in subscribers:
+                try:
+                    user = await self.fetch_user(int(user_id))
+                    if user:
+                        await user.send(embed=embed)
+                except Exception as e:
+                    logger.error(f"Failed to send notification to user {user_id}: {str(e)}")
+
+        except Exception as e:
+            logger.error(f"Error handling episode notification: {str(e)}")
+
+bot = FollowarrBot()
+
+@bot.tree.command(name="follow", description="Follow a TV show")
+@app_commands.describe(show_name="The name of the show you want to follow")
+async def follow(interaction: discord.Interaction, show_name: str):
+    try:
+        await interaction.response.defer()
+        
+        # Search for show
+        show = await bot.tvdb_client.search_show(show_name)
+        if not show:
+            await interaction.followup.send(f"Could not find show: {show_name}")
+            return
+
+        # Add to database
+        success = await bot.db.add_subscription(
+            str(interaction.user.id),
+            show['id'],
+            show['seriesName']
+        )
+        
+        if success:
+            embed = discord.Embed(
+                title="Show Followed",
+                description=f"You are now following: {show['seriesName']}",
+                color=discord.Color.green()
+            )
+            if show.get('overview'):
+                embed.add_field(name="Overview", value=show['overview'], inline=False)
+            if show.get('network'):
+                embed.add_field(name="Network", value=show['network'], inline=True)
+            await interaction.followup.send(embed=embed)
+        else:
+            await interaction.followup.send(f"You are already following: {show['seriesName']}")
+            
+    except Exception as e:
+        logger.error(f"Error in follow command: {str(e)}")
+        await interaction.followup.send("An error occurred while processing your request. Please try again later.")
+
+@bot.tree.command(name="unfollow", description="Unfollow a TV show")
+@app_commands.describe(show_name="The name of the show you want to unfollow")
+async def unfollow(interaction: discord.Interaction, show_name: str):
+    try:
+        await interaction.response.defer()
+        
+        # Search for show
+        show = await bot.tvdb_client.search_show(show_name)
+        if not show:
+            await interaction.followup.send(f"Could not find show: {show_name}")
+            return
+
+        # Remove from database
+        success = await bot.db.remove_subscription(str(interaction.user.id), show['id'])
+        
+        if success:
+            embed = discord.Embed(
+                title="Show Unfollowed",
+                description=f"You are no longer following: {show['seriesName']}",
+                color=discord.Color.red()
+            )
+            await interaction.followup.send(embed=embed)
+        else:
+            await interaction.followup.send(f"You weren't following: {show['seriesName']}")
+            
+    except Exception as e:
+        logger.error(f"Error in unfollow command: {str(e)}")
+        await interaction.followup.send("An error occurred while processing your request. Please try again later.")
+
+@bot.tree.command(name="list", description="List all shows you're following")
+async def list_shows(interaction: discord.Interaction):
+    try:
+        await interaction.response.defer()
+        
+        shows = await bot.db.get_user_subscriptions(str(interaction.user.id))
+        if not shows:
+            await interaction.followup.send("You're not following any shows!")
+            return
+        
+        embed = discord.Embed(
+            title="Your Followed Shows",
+            color=discord.Color.blue()
+        )
+        
+        for show in shows:
+            embed.add_field(
+                name=show['name'],
+                value=f"ID: {show['id']}",
+                inline=False
+            )
+        
+        await interaction.followup.send(embed=embed)
+        
+    except Exception as e:
+        logger.error(f"Error in list command: {str(e)}")
+        await interaction.followup.send("An error occurred while processing your request. Please try again later.")
+
+@bot.event
+async def on_ready():
+    logger.info(f"Bot is ready! Logged in as {bot.user.name} ({bot.user.id})")
+
+def main():
+    try:
+        logger.info("Starting bot...")
+        bot.run(os.getenv('DISCORD_BOT_TOKEN'))
+    except Exception as e:
+        logger.error(f"Failed to start bot: {str(e)}")
+        raise
+
+if __name__ == "__main__":
+    main() 
