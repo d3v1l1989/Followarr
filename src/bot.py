@@ -338,8 +338,13 @@ class FollowarrBot(commands.Bot):
                 for month_key in next_3_months:
                     month_date = datetime.strptime(month_key, "%Y-%m")
                     
+                    # Skip months with no episodes
+                    total_month_episodes = sum(len(episodes) for episodes in episodes_by_month[month_key].values())
+                    if total_month_episodes == 0:
+                        continue
+                    
                     embed = discord.Embed(
-                        title=f"{month_date.strftime('%B %Y')}",
+                        title=f"📅 {month_date.strftime('%B %Y')}",
                         description="Upcoming episodes for your followed shows",
                         color=discord.Color.blue()
                     )
@@ -359,8 +364,8 @@ class FollowarrBot(commands.Bot):
                             name = ep.get('name', '')
                             
                             # Format the episode entry with minimal emojis and better spacing
-                            field_value += f"**{show_name}**\n"
-                            field_value += f"{air_date.strftime('%A, %B %d')}\n"
+                            field_value += f"📺 **{show_name}**\n"
+                            field_value += f"📅 {air_date.strftime('%A, %B %d')}\n"
                             field_value += f"S{season:02d}E{episode:02d}"
                             if name:
                                 field_value += f" - {name}"
@@ -374,22 +379,14 @@ class FollowarrBot(commands.Bot):
                             inline=False
                         )
                     
-                    if not embed.fields:
-                        embed.add_field(
-                            name="No Episodes",
-                            value="No upcoming episodes scheduled for this month",
-                            inline=False
-                        )
-                    
                     # Add footer with total episodes for the month
-                    total_month_episodes = sum(len(episodes) for episodes in episodes_by_month[month_key].values())
                     embed.set_footer(text=f"Total episodes this month: {total_month_episodes}")
                     
                     embeds.append(embed)
                 
                 # Add summary embed
                 summary_embed = discord.Embed(
-                    title="Calendar Summary",
+                    title="📺 Calendar Summary",
                     description=f"Found {len(all_episodes)} upcoming episodes for your shows",
                     color=discord.Color.green()
                 )
@@ -404,28 +401,28 @@ class FollowarrBot(commands.Bot):
                     name = next_ep.get('name', '')
                     
                     next_ep_text = (
-                        f"**{show_name}**\n"
-                        f"{air_date.strftime('%A, %B %d, %Y')}\n"
+                        f"📺 **{show_name}**\n"
+                        f"📅 {air_date.strftime('%A, %B %d, %Y')}\n"
                         f"S{season:02d}E{episode:02d}"
                     )
                     if name:
                         next_ep_text += f"\n{name}"
                     
                     summary_embed.add_field(
-                        name="Next Episode",
+                        name="⏰ Next Episode",
                         value=next_ep_text,
                         inline=False
                     )
                     
                     # Add quick stats
                     stats_text = (
-                        f"**Statistics**\n"
+                        f"📊 **Statistics**\n"
                         f"• Total episodes: {len(all_episodes)}\n"
                         f"• Shows with episodes: {len(set(ep['show_name'] for ep in all_episodes))}\n"
                         f"• Next 3 months covered"
                     )
                     summary_embed.add_field(
-                        name="Overview",
+                        name="📈 Overview",
                         value=stats_text,
                         inline=False
                     )
