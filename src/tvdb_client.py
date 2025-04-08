@@ -246,7 +246,7 @@ class TVDBClient:
         """Get upcoming episodes for a show."""
         try:
             # First get the show details to verify it exists
-            show_data = self._make_request('GET', f'series/{show_id}/extended')
+            show_data = await self._make_request('GET', f'series/{show_id}/extended')
             if not show_data or 'data' not in show_data:
                 logger.error(f"Show with ID {show_id} not found")
                 return []
@@ -254,7 +254,7 @@ class TVDBClient:
             logger.info(f"Fetching upcoming episodes for show {show_id}")
             
             # Get all episodes
-            response = self._make_request('GET', f'series/{show_id}/episodes/official')
+            response = await self._make_request('GET', f'series/{show_id}/episodes/official')
             logger.info(f"Raw episodes response: {response}")
             
             if not response or 'data' not in response or 'episodes' not in response['data']:
