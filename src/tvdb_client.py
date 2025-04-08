@@ -104,13 +104,21 @@ class TVDBClient:
 
         logger.info("Getting new TVDB token")
         try:
-            response = await self._make_request('POST', 'login', json={"apikey": self.api_key})
-            if response and 'data' in response and 'token' in response['data']:
-                self.token = response['data']['token']
-                logger.info("Successfully obtained TVDB token")
-                return self.token
-            logger.error("Failed to get TVDB token: Invalid response format")
-            raise Exception("Failed to get TVDB token: Invalid response format")
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self.base_url}/login",
+                    json={"apikey": self.api_key}
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        if data and 'data' in data and 'token' in data['data']:
+                            self.token = data['data']['token']
+                            logger.info("Successfully obtained TVDB token")
+                            return self.token
+                    
+                    response_text = await response.text()
+                    logger.error(f"Failed to get TVDB token. Status: {response.status}, Response: {response_text}")
+                    raise Exception(f"Failed to get TVDB token: {response.status}")
         except Exception as e:
             logger.error(f"Error in _get_token: {str(e)}")
             raise
