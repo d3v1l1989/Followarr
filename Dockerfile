@@ -1,41 +1,42 @@
+# Use an official Python runtime as a parent image
 FROM python:3.11-slim
 
+# Define standard UID/GID for the app user
+ARG UID=1000
+ARG GID=1000
+
+# Set the working directory in the container
 WORKDIR /app
 
-# Install build dependencies
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    gcc \
-    python3-dev \
-    libffi-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Install system dependencies (if any) - uncomment if needed
+# RUN apt-get update && apt-get install -y --no-install-recommends some-package && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN groupadd -r botuser && useradd -r -g botuser botuser
+# Create a non-root user and group first
+RUN groupadd -g ${GID} appgroup && \
+    useradd -u ${UID} -g appgroup -s /bin/sh -m appuser
 
-# Create necessary directories
-RUN mkdir -p /app/data /app/logs && \
-    chown -R botuser:botuser /app
+# Create app directories 
+RUN mkdir /app/data /app/logs
 
-# Copy requirements first to leverage Docker cache
+# Copy the requirements file into the container
 COPY requirements.txt .
+
+# Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the source files
-COPY src/ /app/src/
+# Copy the rest of the application code into the container
+# Copy application code first, then set permissions
+COPY --chown=appuser:appgroup . .
 
-# Copy the main script
-COPY run.py /app/
+# Ensure the data and logs directories are owned by the appuser
+# (Redundant if --chown works correctly, but explicit for safety)
+RUN chown -R appuser:appgroup /app/data /app/logs
 
-# Make the script executable
-RUN chmod +x /app/run.py
-
-# Set Python path to include the app directory
+# Set environment variables
 ENV PYTHONPATH=/app
 
-# Switch to non-root user
-USER botuser
+# Switch to the non-root user
+USER appuser
 
-# Run the bot
+# Command to run the application
 CMD ["python", "run.py"] 
