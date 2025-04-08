@@ -161,6 +161,23 @@ When a new episode is added to your media server, subscribers will receive a Dis
 - 🖼️ Show thumbnail (if available)
 - Timestamp of when the episode was added
 
+## Testing Notifications
+
+To test the notification system:
+
+1. First, use the `/list` command in Discord to get the ID of a show you're following
+2. Run the test notification script:
+   ```bash
+   python tests/test_notification.py <show_id>
+   ```
+   For example:
+   ```bash
+   python tests/test_notification.py 403245
+   ```
+3. You should see a notification in your Discord channel if everything is set up correctly
+
+The test script simulates a Tautulli webhook that would be sent when a new episode is added.
+
 ## License
 
 MIT License - See [LICENSE](LICENSE) for details 
