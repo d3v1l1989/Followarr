@@ -323,32 +323,6 @@ _Receive notifications for new episodes_
 
 ## 👨‍💻 Development
 
-### 🚀 Release Process
-
-To create a new release:
-
-1. Make sure all changes are committed
-2. Run the release script with the new version number:
-
-```bash
-# For Linux/Mac:
-./release.sh 1.0.1
-
-# For Windows:
-.\release.ps1 -Version 1.0.1
-```
-
-The script will:
-- Create a git tag for the version
-- Build the Docker image with the version tag
-- Push both the versioned and latest tags to Docker Hub
-
-Users can then update by running:
-```bash
-docker compose pull
-docker compose up -d
-```
-
 ### 🔄 Versioning
 
 Followarr uses semantic versioning (MAJOR.MINOR.PATCH):
