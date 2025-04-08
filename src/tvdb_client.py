@@ -33,7 +33,9 @@ class TVShow:
         
         # Handle image URL
         if not self.image_url and self.image:
-            self.image_url = f"https://artworks.thetvdb.com{self.image}"
+            # Make sure the image path starts with a slash
+            image_path = self.image if self.image.startswith('/') else f"/{self.image}"
+            self.image_url = f"https://artworks.thetvdb.com{image_path}"
 
     @classmethod
     def from_api_response(cls, data: Dict[str, Any]) -> 'TVShow':
@@ -46,9 +48,22 @@ class TVShow:
             'status': data.get('status'),
             'first_aired': data.get('firstAired'),
             'network': data.get('network'),
-            'image': data.get('image'),
-            'image_url': f"https://artworks.thetvdb.com{data['image']}" if data.get('image') else None,
+            'image': None,
+            'image_url': None
         }
+
+        # Handle image URL
+        if data.get('image'):
+            image_path = data['image'] if data['image'].startswith('/') else f"/{data['image']}"
+            show_data['image_url'] = f"https://artworks.thetvdb.com{image_path}"
+        elif data.get('artworks'):
+            # Try to find a poster in artworks
+            for artwork in data['artworks']:
+                if artwork.get('type') == 'poster' and artwork.get('image'):
+                    image_path = artwork['image'] if artwork['image'].startswith('/') else f"/{artwork['image']}"
+                    show_data['image_url'] = f"https://artworks.thetvdb.com{image_path}"
+                    break
+
         # Filter out None values
         show_data = {k: v for k, v in show_data.items() if v is not None}
         return cls(**show_data)

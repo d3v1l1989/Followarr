@@ -114,8 +114,13 @@ class FollowarrBot(commands.Bot):
                 )
                 
                 # Add show poster if available
+                logger.debug(f"Show image URL: {show.image_url if hasattr(show, 'image_url') else 'None'}")
                 if hasattr(show, 'image_url') and show.image_url:
-                    embed.set_thumbnail(url=show.image_url)
+                    logger.debug(f"Setting thumbnail URL: {show.image_url}")
+                    try:
+                        embed.set_thumbnail(url=show.image_url)
+                    except Exception as e:
+                        logger.error(f"Error setting thumbnail: {str(e)}")
                 
                 # Add show information fields
                 if show.overview:
