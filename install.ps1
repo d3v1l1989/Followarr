@@ -11,19 +11,25 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 
 # Check for Docker Compose (both formats)
 $dockerComposeCmd = $null
-if (Get-Command docker-compose -ErrorAction SilentlyContinue) {
-    $dockerComposeCmd = "docker-compose"
-} elseif (docker compose version 2>&1) {
+try {
+    # First try docker compose subcommand
+    $null = docker compose version 2>&1
     $dockerComposeCmd = "docker compose"
+    Write-Host "✅ Using Docker Compose V2 (docker compose)" -ForegroundColor Green
+} catch {
+    try {
+        # Then try docker-compose command
+        $null = docker-compose --version 2>&1
+        $dockerComposeCmd = "docker-compose"
+        Write-Host "✅ Using Docker Compose V1 (docker-compose)" -ForegroundColor Green
+    } catch {
+        Write-Host "❌ Docker Compose is not installed. Please install Docker Compose first." -ForegroundColor Red
+        Write-Host "Visit https://docs.docker.com/compose/install/ for installation instructions." -ForegroundColor Yellow
+        exit 1
+    }
 }
 
-if (-not $dockerComposeCmd) {
-    Write-Host "❌ Docker Compose is not installed. Please install Docker Compose first." -ForegroundColor Red
-    Write-Host "Visit https://docs.docker.com/compose/install/ for installation instructions." -ForegroundColor Yellow
-    exit 1
-}
-
-Write-Host "✅ Docker and Docker Compose are installed`n" -ForegroundColor Green
+Write-Host "`n✅ Docker and Docker Compose are installed`n" -ForegroundColor Green
 
 # Create necessary directories
 Write-Host "📁 Creating directories..." -ForegroundColor Cyan
