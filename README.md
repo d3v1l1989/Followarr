@@ -34,6 +34,13 @@ Get notifications when new episodes are added to your media server!
   - View all your followed shows
   - Clean, organized display
 
+- 📅 `/calendar`
+  - View upcoming episodes for your followed shows
+  - Organized by month and date
+  - Summary of total episodes
+  - Next episode information
+  - Statistics about your followed shows
+
 ### Notifications
 Receive detailed Discord DMs when new episodes are available:
 - 🆕 Show title and episode info
@@ -175,6 +182,11 @@ networks:
 ### Command Testing
 Test basic functionality:
 
+1. `/follow <show name>` - Try following a show
+2. `/list` - Check your followed shows
+3. `/calendar` - View upcoming episodes
+4. `/unfollow <show name>` - Unfollow a show
+
 ## Notifications
 
 When a new episode is added to your media server, subscribers will receive a Discord DM containing:
@@ -193,13 +205,19 @@ The notifications use rich embeds with:
 - Formatted timestamps
 - Detailed episode information
 
-## Testing
+## Calendar Feature
 
-### Command Testing
-You can test the bot's basic functionality using these commands:
-1. `/follow <show name>` - Try following a show
-2. `/list` - Verify the show appears in your list
-3. `/unfollow <show name>` - Try unfollowing the show
+The `/calendar` command provides a comprehensive view of upcoming episodes:
+
+- 📅 Monthly view of upcoming episodes
+- 📺 Show name and episode details
+- 📊 Statistics about your followed shows
+- ⏰ Next episode information
+- 📈 Overview of total episodes and shows
+
+The calendar is organized by date and only shows months with upcoming episodes, keeping the output clean and focused on relevant information.
+
+## Testing
 
 ### Notification Testing
 To test the notification system:
