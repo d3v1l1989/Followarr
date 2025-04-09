@@ -213,102 +213,101 @@ class FollowarrBot(commands.Bot):
                 logger.error(f"Error in unfollow command: {str(e)}", exc_info=True)
                 await interaction.followup.send("An error occurred while processing your request. Please try again later.")
 
-        @self.tree.command(name="calendar", description="Show upcoming episodes for your followed shows")
-        async def calendar(interaction: discord.Interaction):
-            """Show upcoming episodes for followed shows."""
+        @self.tree.command(name="calendar", description="Shows upcoming episodes for all shows")
+        async def calendar(self, interaction: discord.Interaction):
+            """Shows upcoming episodes for all shows"""
             try:
-                await interaction.response.defer()
-                
-                # Get user's followed shows
-                shows = self.db.get_user_subscriptions(str(interaction.user.id))
+                # Get all shows from the database
+                shows = self.db.get_all_shows()
                 if not shows:
-                    await interaction.followup.send("You're not following any shows yet! Use `/follow` to add some.")
+                    await interaction.response.send_message("No shows are being tracked. Use `/add` to add shows.", ephemeral=True)
                     return
 
-                # Get upcoming episodes for each show
+                # Get upcoming episodes for all shows
                 all_episodes = []
                 for show in shows:
-                    episodes = await self.tvdb_client.get_upcoming_episodes(show['id'])
-                    for episode in episodes:
-                        episode['show_name'] = show['name']
-                        all_episodes.append(episode)
+                    try:
+                        episodes = await self.tvdb_client.get_upcoming_episodes(show['tvdb_id'])
+                        for episode in episodes:
+                            episode['show_name'] = show['name']
+                            all_episodes.append(episode)
+                    except Exception as e:
+                        logger.error(f"Error getting episodes for {show['name']}: {str(e)}")
+                        continue
 
                 if not all_episodes:
-                    await interaction.followup.send("No upcoming episodes found for your shows in the next 3 months!")
+                    await interaction.response.send_message("No upcoming episodes found for any shows.", ephemeral=True)
                     return
 
                 # Sort episodes by air date
-                all_episodes.sort(key=lambda x: x['aired'])
+                all_episodes.sort(key=lambda x: x['airDate'])
 
                 # Group episodes by month
-                episodes_by_month = defaultdict(list)
+                monthly_episodes = {}
                 for episode in all_episodes:
-                    air_date = datetime.fromisoformat(episode['aired'].replace('Z', '+00:00'))
-                    month_key = air_date.strftime("%Y-%m")
-                    episodes_by_month[month_key].append(episode)
+                    air_date = datetime.fromisoformat(episode['airDate'].replace('Z', '+00:00'))
+                    month_key = air_date.strftime("%B %Y")
+                    if month_key not in monthly_episodes:
+                        monthly_episodes[month_key] = []
+                    monthly_episodes[month_key].append(episode)
 
                 # Create embeds for each month
                 embeds = []
-                for month_key in sorted(episodes_by_month.keys()):
-                    month_date = datetime.strptime(month_key, "%Y-%m")
-                    month_episodes = episodes_by_month[month_key]
-                    
-                    # Create month embed
-                    embed = discord.Embed(
-                        title=f"📅 {month_date.strftime('%B %Y')}",
-                        description="Here are the upcoming episodes for this month:",
-                        color=discord.Color.blue()
-                    )
-
-                    # Add episodes to month embed
-                    for episode in month_episodes:
-                        air_date = datetime.fromisoformat(episode['aired'].replace('Z', '+00:00'))
-                        formatted_date = air_date.strftime("%A, %B %d")
-                        
-                        # Add emojis based on show type/genre
-                        show_emoji = "🎬"  # Default emoji
-                        if "comedy" in episode.get('show_name', '').lower():
-                            show_emoji = "😂"
-                        elif "drama" in episode.get('show_name', '').lower():
-                            show_emoji = "🎭"
-                        elif "action" in episode.get('show_name', '').lower():
-                            show_emoji = "💥"
-                        elif "sci-fi" in episode.get('show_name', '').lower() or "science fiction" in episode.get('show_name', '').lower():
-                            show_emoji = "🚀"
-                        elif "horror" in episode.get('show_name', '').lower():
-                            show_emoji = "👻"
-                        
-                        embed.add_field(
-                            name=f"{show_emoji} {episode['show_name']} S{episode['seasonNumber']}E{episode['number']}",
-                            value=f"📺 **{episode.get('name', 'TBA')}**\n📅 {formatted_date}",
-                            inline=False
-                        )
-
-                    embeds.append(embed)
-
+                
                 # Add summary embed
                 summary_embed = discord.Embed(
-                    title="📊 Calendar Summary",
-                    description=f"Found {len(all_episodes)} upcoming episodes across {len(episodes_by_month)} months",
-                    color=discord.Color.green()
+                    title="📺 Upcoming Episodes Summary",
+                    color=discord.Color.blue()
                 )
+                next_episode = all_episodes[0]
+                next_air_date = datetime.fromisoformat(next_episode['airDate'].replace('Z', '+00:00'))
+                summary_embed.add_field(
+                    name="Next Episode",
+                    value=f"{next_episode['show_name']} S{next_episode['seasonNumber']}E{next_episode['episodeNumber']}\n{next_air_date.strftime('%B %d, %Y')}",
+                    inline=False
+                )
+                summary_embed.add_field(
+                    name="Total Episodes",
+                    value=f"{len(all_episodes)} episodes across {len(monthly_episodes)} months",
+                    inline=False
+                )
+                embeds.append(summary_embed)
 
-                # Add next episode info
-                if all_episodes:
-                    next_ep = all_episodes[0]
-                    air_date = datetime.fromisoformat(next_ep['aired'].replace('Z', '+00:00'))
-                    formatted_date = air_date.strftime("%A, %B %d, %Y")
-                    
-                    summary_embed.add_field(
-                        name="⏰ Next Episode",
-                        value=f"📺 **{next_ep['show_name']}**\nS{next_ep['seasonNumber']}E{next_ep['number']} - {next_ep.get('name', 'TBA')}\n📅 {formatted_date}",
-                        inline=False
+                # Create embeds for each month
+                for month, episodes in monthly_episodes.items():
+                    embed = discord.Embed(
+                        title=f"{month}",
+                        color=discord.Color.blue()
                     )
+                    
+                    current_date = None
+                    for episode in episodes:
+                        air_date = datetime.fromisoformat(episode['airDate'].replace('Z', '+00:00'))
+                        formatted_date = air_date.strftime("%A, %B %d")
+                        
+                        if current_date != formatted_date:
+                            if current_date is not None:
+                                embed.add_field(name="", value="──────────", inline=False)
+                            current_date = formatted_date
+                            embed.add_field(name=formatted_date, value="", inline=False)
+                        
+                        if episode.get('name') and episode['name'].lower() != 'tba':
+                            embed.add_field(
+                                name=f"{episode['show_name']} S{episode['seasonNumber']}E{episode['episodeNumber']}",
+                                value=episode['name'],
+                                inline=False
+                            )
+                        else:
+                            embed.add_field(
+                                name=f"{episode['show_name']} S{episode['seasonNumber']}E{episode['episodeNumber']}",
+                                value="",
+                                inline=False
+                            )
+                    
+                    embeds.append(embed)
 
                 # Send all embeds
-                await interaction.followup.send(embed=summary_embed)
-                for embed in embeds:
-                    await interaction.followup.send(embed=embed)
+                await interaction.response.send_message(embeds=embeds)
 
             except Exception as e:
                 logger.error(f"Error in calendar command: {str(e)}")
