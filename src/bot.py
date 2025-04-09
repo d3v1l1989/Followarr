@@ -307,9 +307,17 @@ class FollowarrBot(commands.Bot):
                             if show_details and show_details.get('image'):
                                 summary_embed.set_thumbnail(url=show_details['image'])
                             
+                            # Build the episode description
+                            episode_description = f"{next_ep_text}\n{next_air_date.strftime('%B %d, %Y at %I:%M %p %Z')}"
+                            
+                            # Add episode overview if available
+                            episode_overview = next_episode.get('overview')
+                            if episode_overview:
+                                episode_description += f"\n\n{episode_overview}"
+                            
                             summary_embed.add_field(
                                 name="Next Episode",
-                                value=f"{next_ep_text}\n{next_air_date.strftime('%B %d, %Y at %I:%M %p %Z')}",
+                                value=episode_description,
                                 inline=False
                             )
                         except (ValueError, TypeError) as e:
