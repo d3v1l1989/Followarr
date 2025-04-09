@@ -130,4 +130,41 @@ class Database:
                 show_id=show_id
             ).first() is not None
         finally:
-            session.close() 
+            session.close()
+
+    async def get_users_by_show(self, show_name: str) -> List[Dict]:
+        """Get all users who follow a specific show."""
+        try:
+            async with self.engine.connect() as conn:
+                # First get the TVDB ID for the show
+                show_result = await conn.execute(
+                    select(self.shows).where(self.shows.c.name == show_name)
+                )
+                show = show_result.first()
+                
+                if not show:
+                    logger.warning(f"Show {show_name} not found in database")
+                    return []
+                
+                # Then get all users who follow this show
+                user_result = await conn.execute(
+                    select(self.user_shows).where(self.user_shows.c.show_id == show.id)
+                )
+                users = user_result.fetchall()
+                
+                if not users:
+                    logger.info(f"No users follow {show_name}")
+                    return []
+                
+                # Get user details
+                user_ids = [user.user_id for user in users]
+                user_details_result = await conn.execute(
+                    select(self.users).where(self.users.c.id.in_(user_ids))
+                )
+                user_details = user_details_result.fetchall()
+                
+                return [dict(user) for user in user_details]
+                
+        except Exception as e:
+            logger.error(f"Error getting users by show: {e}")
+            return [] 
