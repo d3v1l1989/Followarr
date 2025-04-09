@@ -219,17 +219,17 @@ class FollowarrBot(commands.Bot):
             try:
                 await interaction.response.defer()
                 
-                # Get all shows from the database
-                shows = self.db.get_all_shows()
+                # Get user's followed shows
+                shows = self.db.get_user_subscriptions(str(interaction.user.id))
                 if not shows:
-                    await interaction.followup.send("No shows are being tracked. Use `/add` to add shows.")
+                    await interaction.followup.send("You're not following any shows! Use `/follow` to add some.")
                     return
 
                 # Get upcoming episodes for all shows
                 all_episodes = []
                 for show in shows:
                     try:
-                        episodes = await self.tvdb_client.get_upcoming_episodes(show['tvdb_id'])
+                        episodes = await self.tvdb_client.get_upcoming_episodes(show['id'])
                         for episode in episodes:
                             episode['show_name'] = show['name']
                             all_episodes.append(episode)
@@ -238,7 +238,7 @@ class FollowarrBot(commands.Bot):
                         continue
 
                 if not all_episodes:
-                    await interaction.followup.send("No upcoming episodes found for any shows.")
+                    await interaction.followup.send("No upcoming episodes found for your shows.")
                     return
 
                 # Sort episodes by air date
