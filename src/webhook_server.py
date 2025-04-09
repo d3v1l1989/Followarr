@@ -15,10 +15,6 @@ class WebhookServer:
         self.app = FastAPI()
         self.notification_handler = notification_handler
 
-        @self.app.get("/health")
-        async def health_check():
-            return {"status": "healthy"}
-
         @self.app.post("/webhook/tautulli")
         async def tautulli_webhook(request: Request):
             try:
