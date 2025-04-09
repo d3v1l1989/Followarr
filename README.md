@@ -1,6 +1,7 @@
 # 📺 Followarr
 
 <div align="center">
+<img src="docs/screenshots/followarr.png" alt="Followarr Logo" width="300"/>
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![Discord](https://img.shields.io/badge/Discord-Bot-7289DA.svg)
@@ -299,6 +300,10 @@ Followarr uses semantic versioning (MAJOR.MINOR.PATCH):
 - MAJOR: Breaking changes
 - MINOR: New features, backward compatible
 - PATCH: Bug fixes, backward compatible
+
+## 📸 Image Credits
+
+- Followarr logo by [PuksThePirate](https://github.com/PuksThePirate)
 
 ## ☕ Support the Project
 
