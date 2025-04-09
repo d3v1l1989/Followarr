@@ -222,6 +222,8 @@ class TVDBClient:
         try:
             # First check if series exists
             series_response = await self._make_request('GET', f"series/{series_id}")
+            logger.info(f"Series response for {series_id}: {json.dumps(series_response, indent=2)}")
+            
             if not series_response or "data" not in series_response:
                 logger.error(f"Series {series_id} not found")
                 return []
@@ -241,6 +243,8 @@ class TVDBClient:
                 
                 # TVDB API v4 endpoint for episodes
                 response = await self._make_request('GET', f"series/{series_id}/episodes/default", params=params)
+                logger.info(f"Episodes response for {series_id} page {page}: {json.dumps(response, indent=2)}")
+                
                 if not response:
                     logger.error(f"No episodes found for series {series_id}")
                     return []
@@ -253,6 +257,7 @@ class TVDBClient:
                 if "data" in response and "episodes" in response["data"]:
                     page_episodes = response["data"]["episodes"]
                     if not page_episodes:
+                        logger.info(f"No more episodes found for series {series_id} on page {page}")
                         break
                     episodes.extend(page_episodes)
                     
@@ -262,7 +267,7 @@ class TVDBClient:
                     else:
                         break
                 else:
-                    logger.error(f"Invalid response format for series {series_id}")
+                    logger.error(f"Invalid response format for series {series_id}: {json.dumps(response, indent=2)}")
                     return []
 
             logger.info(f"Found {len(episodes)} episodes for series {series_id}")
@@ -270,6 +275,7 @@ class TVDBClient:
 
         except Exception as e:
             logger.error(f"Error getting episodes for series {series_id}: {str(e)}")
+            logger.error(traceback.format_exc())
             return []
 
     async def get_upcoming_episodes(self, series_id: str) -> List[Dict]:
