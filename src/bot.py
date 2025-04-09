@@ -422,32 +422,39 @@ class FollowarrBot(commands.Bot):
 
     async def handle_episode_notification(self, episode_data: dict):
         try:
-            tvdb_id = episode_data.get('tvdb_id')
-            if not tvdb_id:
-                logger.error("No TVDB ID in notification payload")
+            # Extract show information from Tautulli payload
+            show_name = episode_data.get('grandparent_title', '')  # Tautulli uses grandparent_title for show name
+            season_num = episode_data.get('parent_index', 0)  # Tautulli uses parent_index for season number
+            episode_num = episode_data.get('index', 0)  # Tautulli uses index for episode number
+            episode_name = episode_data.get('title', '')  # Tautulli uses title for episode name
+            summary = episode_data.get('summary', '')
+            air_date = episode_data.get('originally_available_at', '')
+            poster_url = episode_data.get('thumb', '')  # Tautulli uses thumb for episode thumbnail
+
+            # Search for the show in TVDB
+            show = await self.tvdb_client.search_show(show_name)
+            if not show:
+                logger.warning(f"Could not find show details from TVDB for show: {show_name}")
                 return
 
-            show = await self.tvdb_client.search_show(episode_data.get('title', ''))
-            if not show:
-                logger.warning(f"Could not find show details from TVDB for ID: {tvdb_id}")
-
-            subscribers = self.db.get_show_subscribers(int(tvdb_id))
+            # Get subscribers for this show
+            subscribers = self.db.get_show_subscribers(show.id)
             
             if not subscribers:
-                logger.info(f"No subscribers for show ID: {tvdb_id}")
+                logger.info(f"No subscribers for show: {show_name}")
                 return
 
             # Create notification embed
             embed = discord.Embed(
                 title=f"🆕 New Episode Available",
-                description=f"A new episode of **{episode_data.get('title', 'Unknown Show')}** is available!",
+                description=f"A new episode of **{show_name}** is available!",
                 color=discord.Color.green(),
                 timestamp=datetime.now()
             )
 
-            episode_title = f"S{episode_data.get('season_num', '00')}E{episode_data.get('episode_num', '00')}"
-            if episode_data.get('episode_name'):
-                episode_title += f" - {episode_data['episode_name']}"
+            episode_title = f"S{season_num:02d}E{episode_num:02d}"
+            if episode_name:
+                episode_title += f" - {episode_name}"
             
             embed.add_field(
                 name="📺 Episode",
@@ -455,19 +462,27 @@ class FollowarrBot(commands.Bot):
                 inline=False
             )
 
-            if episode_data.get('summary'):
+            if summary:
                 embed.add_field(
                     name="📝 Summary",
-                    value=episode_data['summary'][:1024],
+                    value=summary[:1024],
                     inline=False
                 )
 
-            if episode_data.get('air_date'):
-                embed.add_field(
-                    name="📅 Air Date",
-                    value=episode_data['air_date'],
-                    inline=True
-                )
+            if air_date:
+                try:
+                    air_date_obj = datetime.fromisoformat(air_date.replace('Z', '+00:00'))
+                    embed.add_field(
+                        name="📅 Air Date",
+                        value=air_date_obj.strftime('%B %d, %Y'),
+                        inline=True
+                    )
+                except (ValueError, TypeError):
+                    embed.add_field(
+                        name="📅 Air Date",
+                        value=air_date,
+                        inline=True
+                    )
 
             if show and show.status:
                 status = show.status.get('name', 'Unknown') if isinstance(show.status, dict) else str(show.status)
@@ -479,8 +494,8 @@ class FollowarrBot(commands.Bot):
 
             if show and hasattr(show, 'image_url') and show.image_url:
                 embed.set_thumbnail(url=show.image_url)
-            elif episode_data.get('poster_url'):
-                embed.set_thumbnail(url=episode_data['poster_url'])
+            elif poster_url:
+                embed.set_thumbnail(url=poster_url)
 
             embed.set_footer(text="Data provided by TVDB • Followarr Notification")
 
