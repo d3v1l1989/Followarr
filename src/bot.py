@@ -15,6 +15,7 @@ from discord.app_commands import CommandTree
 from datetime import datetime, timedelta, timezone
 import calendar
 from collections import defaultdict
+from typing import Dict
 
 # Load env vars and setup logging
 load_dotenv()
@@ -423,96 +424,54 @@ class FollowarrBot(commands.Bot):
         logger.error(f"Command error: {str(error)}")
         logger.error(traceback.format_exc())
 
-    async def handle_episode_notification(self, episode_data: dict):
+    async def handle_episode_notification(self, payload: Dict):
+        """Handle episode notification from Tautulli"""
         try:
-            # Extract show information from Tautulli payload
-            show_name = episode_data.get('grandparent_title', '')  # Tautulli uses grandparent_title for show name
-            season_num = episode_data.get('parent_index', 0)  # Tautulli uses parent_index for season number
-            episode_num = episode_data.get('index', 0)  # Tautulli uses index for episode number
-            episode_name = episode_data.get('title', '')  # Tautulli uses title for episode name
-            summary = episode_data.get('summary', '')
-            air_date = episode_data.get('originally_available_at', '')
-            poster_url = episode_data.get('thumb', '')  # Tautulli uses thumb for episode thumbnail
+            # Extract episode information from payload
+            show_name = payload.get('grandparent_title')
+            season_num = payload.get('parent_media_index')
+            episode_num = payload.get('media_index')
+            episode_title = payload.get('title')
+            episode_summary = payload.get('summary')
+            air_date = payload.get('originally_available_at')
+            thumb = payload.get('thumb')
 
-            # Search for the show in TVDB
-            show = await self.tvdb_client.search_show(show_name)
-            if not show:
-                logger.warning(f"Could not find show details from TVDB for show: {show_name}")
+            logger.info(f"Processing episode notification for {show_name} S{season_num}E{episode_num}")
+
+            # Get all users who follow this show
+            users = await self.db.get_users_by_show(show_name)
+            if not users:
+                logger.info(f"No users follow {show_name}")
                 return
 
-            # Get subscribers for this show
-            subscribers = self.db.get_show_subscribers(show.id)
-            
-            if not subscribers:
-                logger.info(f"No subscribers for show: {show_name}")
-                return
+            logger.info(f"Found {len(users)} users following {show_name}")
 
-            # Create notification embed
+            # Create embed for the notification
             embed = discord.Embed(
-                title=f"🆕 New Episode Available",
-                description=f"A new episode of **{show_name}** is available!",
-                color=discord.Color.green(),
-                timestamp=datetime.now()
+                title=f"🎬 New Episode: {show_name}",
+                description=f"**S{season_num}E{episode_num} - {episode_title}**\n\n{episode_summary}",
+                color=discord.Color.blue()
             )
+            embed.add_field(name="Air Date", value=air_date, inline=True)
+            if thumb:
+                embed.set_thumbnail(url=thumb)
 
-            episode_title = f"S{season_num:02d}E{episode_num:02d}"
-            if episode_name:
-                episode_title += f" - {episode_name}"
-            
-            embed.add_field(
-                name="📺 Episode",
-                value=episode_title,
-                inline=False
-            )
-
-            if summary:
-                embed.add_field(
-                    name="📝 Summary",
-                    value=summary[:1024],
-                    inline=False
-                )
-
-            if air_date:
+            # Send notification to each user
+            for user_id in users:
                 try:
-                    air_date_obj = datetime.fromisoformat(air_date.replace('Z', '+00:00'))
-                    embed.add_field(
-                        name="📅 Air Date",
-                        value=air_date_obj.strftime('%B %d, %Y'),
-                        inline=True
-                    )
-                except (ValueError, TypeError):
-                    embed.add_field(
-                        name="📅 Air Date",
-                        value=air_date,
-                        inline=True
-                    )
-
-            if show and show.status:
-                status = show.status.get('name', 'Unknown') if isinstance(show.status, dict) else str(show.status)
-                embed.add_field(
-                    name="📊 Show Status",
-                    value=status,
-                    inline=True
-                )
-
-            if show and hasattr(show, 'image_url') and show.image_url:
-                embed.set_thumbnail(url=show.image_url)
-            elif poster_url:
-                embed.set_thumbnail(url=poster_url)
-
-            embed.set_footer(text="Data provided by TVDB • Followarr Notification")
-
-            for user_id in subscribers:
-                try:
-                    user = await self.fetch_user(int(user_id))
+                    user = await self.fetch_user(user_id)
                     if user:
                         await user.send(embed=embed)
+                        logger.info(f"Sent notification to user {user_id} for {show_name} S{season_num}E{episode_num}")
+                    else:
+                        logger.warning(f"Could not find user {user_id}")
+                except discord.Forbidden:
+                    logger.warning(f"Could not send DM to user {user_id} (DMs disabled)")
                 except Exception as e:
-                    logger.error(f"Failed to send notification to user {user_id}: {str(e)}")
+                    logger.error(f"Error sending notification to user {user_id}: {str(e)}")
 
         except Exception as e:
-            logger.error(f"Error handling episode notification: {str(e)}")
-            logger.error(traceback.format_exc())
+            logger.error(f"Error handling episode notification: {str(e)}", exc_info=True)
 
 def main():
     try:
