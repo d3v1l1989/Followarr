@@ -302,6 +302,11 @@ class FollowarrBot(commands.Bot):
                             if episode_name and episode_name.lower() != 'tba':
                                 next_ep_text += f" - {episode_name}"
                             
+                            # Get show details to get the poster image
+                            show_details = await self.tvdb_client.get_show_details(next_episode['seriesId'])
+                            if show_details and show_details.get('image'):
+                                summary_embed.set_thumbnail(url=show_details['image'])
+                            
                             summary_embed.add_field(
                                 name="Next Episode",
                                 value=f"{next_ep_text}\n{next_air_date.strftime('%B %d, %Y at %I:%M %p %Z')}",
