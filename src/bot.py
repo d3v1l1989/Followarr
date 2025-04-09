@@ -15,7 +15,7 @@ from discord.app_commands import CommandTree
 from datetime import datetime, timedelta, timezone
 import calendar
 from collections import defaultdict
-from typing import Dict
+from typing import Dict, Optional, List
 
 # Load env vars and setup logging
 load_dotenv()
@@ -27,7 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class CustomCommandTree(CommandTree):
-    async def sync(self, *, guild=None) -> None:
+    async def sync(self, *, guild: Optional[discord.Guild] = None) -> List[app_commands.AppCommand]:
         logger.info(f"Starting command sync {'globally' if guild is None else f'for guild {guild.id}'}")
         try:
             commands = await super().sync(guild=guild)
@@ -71,7 +71,7 @@ class FollowarrBot(commands.Bot):
         # Setup slash commands
         self.setup_commands()
 
-    def setup_commands(self):
+    def setup_commands(self) -> None:
         @self.tree.command(name="follow", description="Follow a TV show")
         @app_commands.describe(show_name="The name of the show you want to follow")
         async def follow(interaction: discord.Interaction, show_name: str) -> None:
@@ -346,7 +346,7 @@ class FollowarrBot(commands.Bot):
                 logger.error(f"Error in calendar command: {str(e)}", exc_info=True)
                 await interaction.response.send_message("An error occurred while fetching the calendar.", ephemeral=True)
 
-    async def setup_hook(self):
+    async def setup_hook(self) -> None:
         logger.info("Setting up bot...")
         
         # Initialize DB (moved to on_ready)
@@ -387,7 +387,7 @@ class FollowarrBot(commands.Bot):
         
         logger.info("Bot setup complete.")
 
-    async def on_ready(self):
+    async def on_ready(self) -> None:
         logger.info(f'Logged in as {self.user.name} (ID: {self.user.id})')
         logger.info('Bot is ready and online!')
         
@@ -412,11 +412,11 @@ class FollowarrBot(commands.Bot):
             logger.error(f"Error syncing commands on ready: {str(e)}")
             logger.error(traceback.format_exc())
 
-    async def on_command_error(self, ctx, error):
+    async def on_command_error(self, ctx: commands.Context, error: Exception) -> None:
         logger.error(f"Command error: {str(error)}")
         logger.error(traceback.format_exc())
 
-    async def handle_episode_notification(self, payload: Dict):
+    async def handle_episode_notification(self, payload: Dict) -> None:
         """Handle episode notification from Tautulli"""
         try:
             # Extract episode information from payload
