@@ -224,10 +224,12 @@ class TVDBClient:
                     "page": page,
                     "limit": 100,  # Maximum allowed by API
                     "sort": "aired",  # Sort by air date
-                    "order": "asc"    # Ascending order
+                    "order": "asc",   # Ascending order
+                    "airedSeason": "all"  # Get all seasons
                 }
                 
-                response = await self._make_request('GET', f"series/{series_id}/episodes", params=params)
+                # Use the episodes/default endpoint for TVDB API v4
+                response = await self._make_request('GET', f"series/{series_id}/episodes/default", params=params)
                 if not response:
                     logger.error(f"No episodes found for series {series_id}")
                     return []
