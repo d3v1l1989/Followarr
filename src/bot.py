@@ -27,7 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class CustomCommandTree(CommandTree):
-    async def sync(self, *, guild=None):
+    async def sync(self, *, guild=None) -> None:
         logger.info(f"Starting command sync {'globally' if guild is None else f'for guild {guild.id}'}")
         try:
             commands = await super().sync(guild=guild)
@@ -40,7 +40,7 @@ class CustomCommandTree(CommandTree):
             logger.error(traceback.format_exc())
             raise
 
-    async def on_error(self, interaction: discord.Interaction, error: Exception):
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
         logger.error(f"Command error in {interaction.command.name if interaction.command else 'unknown command'}")
         logger.error(f"Error details: {str(error)}")
         logger.error(traceback.format_exc())
