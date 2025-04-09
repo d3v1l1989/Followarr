@@ -207,48 +207,56 @@ class TVDBClient:
             logger.error(f"Error getting series: {e}")
             return None
 
-    async def get_episodes(self, series_id: str) -> List[Dict]:
+    async def get_episodes(self, series_id: int) -> List[Dict]:
+        """Get all episodes for a series."""
         try:
-            # First get the series info to check if it exists
-            series = await self.get_series(series_id)
-            if not series:
-                logger.error(f"Could not find series with ID {series_id}")
+            # First check if series exists
+            series_response = await self._make_request(f"/series/{series_id}")
+            if not series_response or "data" not in series_response:
+                logger.error(f"Series {series_id} not found")
                 return []
 
-            # Use the episodes endpoint with pagination
+            episodes = []
             page = 1
-            all_episodes = []
-            
             while True:
-                response = await self._make_request('GET', f'series/{series_id}/episodes?page={page}')
-                logger.info(f"TVDB API response for series {series_id} page {page}: {json.dumps(response, indent=2)}")
+                # Add required parameters for TVDB API v4
+                params = {
+                    "page": page,
+                    "limit": 100,  # Maximum allowed by API
+                    "sort": "aired",  # Sort by air date
+                    "order": "asc"    # Ascending order
+                }
                 
-                if not response or 'data' not in response:
-                    logger.error(f"Invalid TVDB API response for series {series_id}")
-                    break
+                response = await self._make_request(f"/series/{series_id}/episodes", params=params)
+                if not response:
+                    logger.error(f"No episodes found for series {series_id}")
+                    return []
 
-                episodes = response.get('data', [])
-                if not episodes:
-                    break
+                if response.get("status") == "error":
+                    logger.error(f"TVDB API error for series {series_id}: {response.get('message')}")
+                    return []
 
-                all_episodes.extend(episodes)
-                
-                # Check if there are more pages
-                links = response.get('links', {})
-                if not links.get('next'):
-                    break
+                # Check if we have episodes in the response
+                if "data" in response and "episodes" in response["data"]:
+                    page_episodes = response["data"]["episodes"]
+                    if not page_episodes:
+                        break
+                    episodes.extend(page_episodes)
                     
-                page += 1
+                    # Check if there are more pages
+                    if "links" in response and "next" in response["links"]:
+                        page += 1
+                    else:
+                        break
+                else:
+                    logger.error(f"Invalid response format for series {series_id}")
+                    return []
 
-            if not all_episodes:
-                logger.error(f"No episodes found for series {series_id}")
-                return []
-
-            logger.info(f"Found {len(all_episodes)} episodes for series {series_id}")
-            return all_episodes
+            logger.info(f"Found {len(episodes)} episodes for series {series_id}")
+            return episodes
 
         except Exception as e:
-            logger.error(f"Error getting episodes: {e}")
+            logger.error(f"Error getting episodes for series {series_id}: {str(e)}")
             return []
 
     async def get_upcoming_episodes(self, series_id: str) -> List[Dict]:
