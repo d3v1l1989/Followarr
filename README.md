@@ -175,25 +175,24 @@ This is the recommended method to install Followarr.
     *   If Followarr is on the host or different network: `http://<followarr_host_ip>:3000/webhook/tautulli` (replace `<followarr_host_ip>` with the IP address of the machine running Followarr).
 4.  Under **Triggers**, select `Recently Added`.
 5.  Under **Conditions**, you might want to add a condition like `Media Type is episode` to only trigger for TV shows.
-6.  Under **Webhook Configuration**:
-    *   Set **Request Method** to `POST`
-    *   Set **Request Headers** to:
+6.  In the **Data** section under **Recently Added**:
+    *   For JSON Headers:
+        ```json
+        {
+            "Content-Type": "application/json"
+        }
         ```
-        Content-Type: application/json
-        User-Agent: Tautulli
-        X-Tautulli-Event: media.added
-        ```
-    *   Set **JSON Data** to:
+    *   For JSON Data:
         ```json
         {
             "event": "media.added",
             "media_type": "episode",
-            "grandparent_title": "{{grandparent_title}}",
-            "parent_media_index": "{{parent_media_index}}",
-            "media_index": "{{media_index}}",
-            "title": "{{title}}",
-            "summary": "{{summary}}",
-            "originally_available_at": "{{originally_available_at}}"
+            "grandparent_title": "{show_name}",
+            "parent_media_index": "{season_num}",
+            "media_index": "{episode_num}",
+            "title": "{episode_name}",
+            "originally_available_at": "{air_date}",
+            "summary": "{summary}"
         }
         ```
 7.  Save the notification agent.
