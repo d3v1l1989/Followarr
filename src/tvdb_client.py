@@ -197,6 +197,26 @@ class TVDBClient:
             logger.error(f"Error getting episode details: {e}")
             return None
 
+    async def get_series(self, series_id: str) -> Optional[Dict]:
+        try:
+            response = await self._make_request('GET', f'series/{series_id}')
+            if response and 'data' in response:
+                return response['data']
+            return None
+        except Exception as e:
+            logger.error(f"Error getting series: {e}")
+            return None
+
+    async def get_episodes(self, series_id: str) -> List[Dict]:
+        try:
+            response = await self._make_request('GET', f'series/{series_id}/episodes')
+            if response and 'data' in response:
+                return response['data']
+            return []
+        except Exception as e:
+            logger.error(f"Error getting episodes: {e}")
+            return []
+
     async def get_upcoming_episodes(self, series_id: str) -> List[Dict]:
         try:
             series = await self.get_series(series_id)
@@ -214,7 +234,7 @@ class TVDBClient:
             upcoming = []
             for episode in episodes:
                 try:
-                    air_date_str = episode.get('air_date', '')
+                    air_date_str = episode.get('aired', '')  # TVDB v4 uses 'aired' instead of 'air_date'
                     if not air_date_str:
                         continue
                         
@@ -231,12 +251,12 @@ class TVDBClient:
                     logger.error(f"Error processing episode date: {e}")
                     continue
 
-            upcoming.sort(key=lambda x: x.get('air_date', ''))
+            upcoming.sort(key=lambda x: x.get('aired', ''))
             
             three_months_later = now + timedelta(days=90)
             upcoming = [
                 ep for ep in upcoming 
-                if datetime.fromisoformat(ep.get('air_date', '').replace('Z', '+00:00')) <= three_months_later
+                if datetime.fromisoformat(ep.get('aired', '').replace('Z', '+00:00')) <= three_months_later
             ]
             
             return upcoming
