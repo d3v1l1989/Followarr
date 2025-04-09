@@ -74,7 +74,7 @@ class FollowarrBot(commands.Bot):
     def setup_commands(self):
         @self.tree.command(name="follow", description="Follow a TV show")
         @app_commands.describe(show_name="The name of the show you want to follow")
-        async def follow(interaction: discord.Interaction, show_name: str):
+        async def follow(interaction: discord.Interaction, show_name: str) -> None:
             """Follow a TV show."""
             try:
                 await interaction.response.defer(ephemeral=False)
@@ -137,7 +137,7 @@ class FollowarrBot(commands.Bot):
                 await interaction.followup.send(f"An error occurred while following the show: {str(e)}")
 
         @self.tree.command(name="list", description="List all shows you're following")
-        async def list_shows(interaction: discord.Interaction):
+        async def list_shows(interaction: discord.Interaction) -> None:
             """List all shows you're following."""
             try:
                 await interaction.response.defer()
@@ -168,7 +168,7 @@ class FollowarrBot(commands.Bot):
 
         @self.tree.command(name="unfollow", description="Unfollow a TV show")
         @app_commands.describe(show_name="The name of the show you want to unfollow")
-        async def unfollow(interaction: discord.Interaction, show_name: str):
+        async def unfollow(interaction: discord.Interaction, show_name: str) -> None:
             """Unfollow a TV show."""
             try:
                 await interaction.response.defer()
