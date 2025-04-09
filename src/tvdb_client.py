@@ -83,9 +83,14 @@ class TVDBClient:
         if not self.api_key:
             raise ValueError("TVDB API key not provided and not found in environment variables")
         self.token = None
-        self.base_url = 'https://api4.thetvdb.com/v4'
+        self.base_url = 'https://api4.thetvdb.com/v4'  # TVDB API v4 base URL
+        self.headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json"
+        }
 
     async def _get_token(self) -> str:
+        """Get authentication token from TVDB API."""
         if self.token:
             return self.token
 
@@ -93,7 +98,8 @@ class TVDBClient:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
                     f"{self.base_url}/login",
-                    json={"apikey": self.api_key}
+                    json={"apikey": self.api_key},
+                    headers=self.headers
                 ) as response:
                     if response.status == 200:
                         data = await response.json()
@@ -109,11 +115,12 @@ class TVDBClient:
             raise
 
     async def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None, json: Optional[Dict] = None) -> Dict:
+        """Make a request to the TVDB API with proper authentication."""
         try:
             token = await self._get_token()
             headers = {
-                "Authorization": f"Bearer {token}",
-                "Content-Type": "application/json"
+                **self.headers,
+                "Authorization": f"Bearer {token}"
             }
             
             async with aiohttp.ClientSession() as session:
@@ -125,10 +132,13 @@ class TVDBClient:
                     json=json
                 ) as response:
                     if response.status == 401:
+                        # Token expired, get a new one and retry
                         self.token = None
                         return await self._make_request(method, endpoint, params, json)
                     
                     response_data = await response.json()
+                    if response.status != 200:
+                        logger.error(f"TVDB API error: {response.status} - {response_data}")
                     return response_data
                     
         except Exception as e:
@@ -208,7 +218,7 @@ class TVDBClient:
             return None
 
     async def get_episodes(self, series_id: int) -> List[Dict]:
-        """Get all episodes for a series."""
+        """Get all episodes for a series using TVDB API v4."""
         try:
             # First check if series exists
             series_response = await self._make_request('GET', f"series/{series_id}")
@@ -219,16 +229,17 @@ class TVDBClient:
             episodes = []
             page = 1
             while True:
-                # Add required parameters for TVDB API v4
+                # TVDB API v4 parameters
                 params = {
                     "page": page,
                     "limit": 100,  # Maximum allowed by API
                     "sort": "aired",  # Sort by air date
                     "order": "asc",   # Ascending order
-                    "airedSeason": "all"  # Get all seasons
+                    "airedSeason": "all",  # Get all seasons
+                    "include": "translations"  # Include episode translations
                 }
                 
-                # Use the episodes/default endpoint for TVDB API v4
+                # TVDB API v4 endpoint for episodes
                 response = await self._make_request('GET', f"series/{series_id}/episodes/default", params=params)
                 if not response:
                     logger.error(f"No episodes found for series {series_id}")
@@ -262,49 +273,48 @@ class TVDBClient:
             return []
 
     async def get_upcoming_episodes(self, series_id: str) -> List[Dict]:
+        """Get upcoming episodes for a series within the next 3 months."""
         try:
-            series = await self.get_series(series_id)
-            if not series:
-                logger.error(f"Could not find series with ID {series_id}")
-                return []
-
+            # Get all episodes for the series
             episodes = await self.get_episodes(series_id)
             if not episodes:
                 logger.error(f"No episodes found for series {series_id}")
                 return []
 
             now = datetime.now(timezone.utc)
-            
-            upcoming = []
+            three_months_later = now + timedelta(days=90)
+            upcoming_episodes = []
+
             for episode in episodes:
                 try:
-                    air_date_str = episode.get('aired', '')  # TVDB v4 uses 'aired' instead of 'air_date'
+                    # TVDB API v4 uses 'aired' instead of 'air_date'
+                    air_date_str = episode.get('aired')
                     if not air_date_str:
                         continue
-                        
+
+                    # Handle different date formats
                     if 'T' in air_date_str:
+                        # ISO format with time
                         air_date_str = air_date_str.replace('Z', '+00:00')
                         air_date = datetime.fromisoformat(air_date_str)
                     else:
+                        # Date-only format
                         air_date = datetime.strptime(air_date_str, "%Y-%m-%d")
                         air_date = air_date.replace(tzinfo=timezone.utc)
-                    
-                    if air_date > now:
-                        upcoming.append(episode)
+
+                    # Check if episode is in the future and within 3 months
+                    if now < air_date <= three_months_later:
+                        upcoming_episodes.append(episode)
+
                 except (ValueError, TypeError) as e:
-                    logger.error(f"Error processing episode date: {e}")
+                    logger.error(f"Error processing episode date for series {series_id}: {e}")
                     continue
 
-            upcoming.sort(key=lambda x: x.get('aired', ''))
+            # Sort episodes by air date
+            upcoming_episodes.sort(key=lambda x: x.get('aired', ''))
             
-            three_months_later = now + timedelta(days=90)
-            upcoming = [
-                ep for ep in upcoming 
-                if datetime.fromisoformat(ep.get('aired', '').replace('Z', '+00:00')) <= three_months_later
-            ]
-            
-            logger.info(f"Found {len(upcoming)} upcoming episodes for series {series_id}")
-            return upcoming
+            logger.info(f"Found {len(upcoming_episodes)} upcoming episodes for series {series_id}")
+            return upcoming_episodes
 
         except Exception as e:
             logger.error(f"Error getting upcoming episodes for series {series_id}: {str(e)}")
