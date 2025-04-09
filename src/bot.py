@@ -215,7 +215,7 @@ class FollowarrBot(commands.Bot):
                 await interaction.followup.send("An error occurred while processing your request. Please try again later.")
 
         @self.tree.command(name="calendar", description="View upcoming episodes for your followed shows")
-        async def calendar(self, interaction: discord.Interaction):
+        async def calendar(self, interaction: discord.Interaction) -> None:
             """View upcoming episodes for your followed shows"""
             try:
                 # Get user's followed shows
