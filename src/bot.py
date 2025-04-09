@@ -291,8 +291,8 @@ class FollowarrBot(commands.Bot):
                                 next_air_date = datetime.strptime(next_air_date_str, "%Y-%m-%d")
                                 next_air_date = next_air_date.replace(tzinfo=timezone.utc)
                                 
-                            season = next_episode.get('seasonNumber', '?')
-                            episode = next_episode.get('episodeNumber', '?')
+                            season = next_episode.get('season', '?')
+                            episode = next_episode.get('episode', '?')
                             episode_name = next_episode.get('name', 'TBA')
                             
                             next_ep_text = f"{next_episode['show_name']} S{season}E{episode}"
@@ -342,8 +342,8 @@ class FollowarrBot(commands.Bot):
                                 current_date = formatted_date
                                 embed.add_field(name=formatted_date, value="", inline=False)
                             
-                            season = episode.get('seasonNumber', '?')
-                            episode_num = episode.get('episodeNumber', '?')
+                            season = episode.get('season', '?')
+                            episode_num = episode.get('episode', '?')
                             episode_name = episode.get('name', '')
                             
                             episode_text = f"{episode['show_name']} S{season}E{episode_num}"
