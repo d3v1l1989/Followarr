@@ -211,8 +211,8 @@ class TVDBClient:
         try:
             # Use the extended endpoint to get all episodes
             response = await self._make_request('GET', f'series/{series_id}/episodes/extended')
-            if response and 'data' in response:
-                return response['data']
+            if response and 'data' in response and 'episodes' in response['data']:
+                return response['data']['episodes']
             return []
         except Exception as e:
             logger.error(f"Error getting episodes: {e}")
