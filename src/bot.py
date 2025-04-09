@@ -259,6 +259,10 @@ class FollowarrBot(commands.Bot):
                             air_date = datetime.strptime(air_date_str, "%Y-%m-%d")
                             air_date = air_date.replace(tzinfo=timezone.utc)
                             
+                        # Skip episodes more than 6 months in the future
+                        if (air_date - datetime.now(timezone.utc)).days > 180:
+                            continue
+                            
                         month_key = air_date.strftime("%B %Y")
                         if month_key not in monthly_episodes:
                             monthly_episodes[month_key] = []
@@ -275,23 +279,33 @@ class FollowarrBot(commands.Bot):
                     title="Upcoming Episodes Summary",
                     color=discord.Color.blue()
                 )
-                next_episode = all_episodes[0]
-                next_air_date_str = next_episode.get('aired')
-                if next_air_date_str:
-                    try:
-                        if 'T' in next_air_date_str:
-                            next_air_date = datetime.fromisoformat(next_air_date_str.replace('Z', '+00:00'))
-                        else:
-                            next_air_date = datetime.strptime(next_air_date_str, "%Y-%m-%d")
-                            next_air_date = next_air_date.replace(tzinfo=timezone.utc)
+                
+                if all_episodes:
+                    next_episode = all_episodes[0]
+                    next_air_date_str = next_episode.get('aired')
+                    if next_air_date_str:
+                        try:
+                            if 'T' in next_air_date_str:
+                                next_air_date = datetime.fromisoformat(next_air_date_str.replace('Z', '+00:00'))
+                            else:
+                                next_air_date = datetime.strptime(next_air_date_str, "%Y-%m-%d")
+                                next_air_date = next_air_date.replace(tzinfo=timezone.utc)
+                                
+                            season = next_episode.get('seasonNumber', '?')
+                            episode = next_episode.get('episodeNumber', '?')
+                            episode_name = next_episode.get('name', 'TBA')
                             
-                        summary_embed.add_field(
-                            name="Next Episode",
-                            value=f"{next_episode['show_name']} S{next_episode.get('seasonNumber', '?')}E{next_episode.get('episodeNumber', '?')}\n{next_air_date.strftime('%B %d, %Y')}",
-                            inline=False
-                        )
-                    except (ValueError, TypeError) as e:
-                        logger.error(f"Error processing next episode date: {e}")
+                            next_ep_text = f"{next_episode['show_name']} S{season}E{episode}"
+                            if episode_name and episode_name.lower() != 'tba':
+                                next_ep_text += f" - {episode_name}"
+                            
+                            summary_embed.add_field(
+                                name="Next Episode",
+                                value=f"{next_ep_text}\n{next_air_date.strftime('%B %d, %Y')}",
+                                inline=False
+                            )
+                        except (ValueError, TypeError) as e:
+                            logger.error(f"Error processing next episode date: {e}")
                 
                 summary_embed.add_field(
                     name="Total Episodes",
@@ -328,21 +342,29 @@ class FollowarrBot(commands.Bot):
                                 current_date = formatted_date
                                 embed.add_field(name=formatted_date, value="", inline=False)
                             
-                            if episode.get('name') and episode['name'].lower() != 'tba':
-                                embed.add_field(
-                                    name=f"{episode['show_name']} S{episode.get('seasonNumber', '?')}E{episode.get('episodeNumber', '?')}",
-                                    value=episode['name'],
-                                    inline=False
-                                )
-                            else:
-                                embed.add_field(
-                                    name=f"{episode['show_name']} S{episode.get('seasonNumber', '?')}E{episode.get('episodeNumber', '?')}",
-                                    value="",
-                                    inline=False
-                                )
+                            season = episode.get('seasonNumber', '?')
+                            episode_num = episode.get('episodeNumber', '?')
+                            episode_name = episode.get('name', '')
+                            
+                            episode_text = f"{episode['show_name']} S{season}E{episode_num}"
+                            if episode_name and episode_name.lower() != 'tba':
+                                episode_text += f" - {episode_name}"
+                            
+                            embed.add_field(
+                                name=episode_text,
+                                value="",
+                                inline=False
+                            )
                         except (ValueError, TypeError) as e:
                             logger.error(f"Error processing episode date: {e}")
                             continue
+                    
+                    if not embed.fields:
+                        embed.add_field(
+                            name="No Episodes",
+                            value="No upcoming episodes this month",
+                            inline=False
+                        )
                     
                     embeds.append(embed)
 
