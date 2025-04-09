@@ -362,27 +362,8 @@ class FollowarrBot(commands.Bot):
         #     self.db.init_db()
         #     logger.info("Database initialized successfully.")
         # except Exception as e:
-        #     logger.error(f"Error during setup: {e}", exc_info=True)
+        #     self.logger.error(f"Error during setup: {e}", exc_info=True)
         #     raise  # Re-raise the exception to potentially stop the bot if DB fails
-
-        # Sync commands
-        try:
-            synced_global = await self.tree.sync()
-            logger.info(f"Synced {len(synced_global)} global commands")
-            # Optionally sync guild-specific commands if needed
-            # test_guild = discord.Object(id=YOUR_TEST_GUILD_ID)  # Replace with your guild ID
-            # synced_guild = await self.tree.sync(guild=test_guild)
-            # logger.info(f"Synced {len(synced_guild)} commands to guild {test_guild.id}")
-        except discord.errors.Forbidden as e:
-            logger.error(
-                "Bot lacks 'applications.commands' scope. "
-                "Please re-invite with the correct scope."
-            )
-            # Decide if you want to exit or continue without commands
-            # await self.close()
-            # return
-        except Exception as e:
-            logger.error(f"Command syncing failed: {e}", exc_info=True)
 
         # Start webhook server
         logger.info("Starting webhook server...")
@@ -410,14 +391,23 @@ class FollowarrBot(commands.Bot):
             # await self.close()
             # return
 
-        # Optional: Set bot presence
+        # Sync commands
         try:
-            commands = await self.tree.sync()
-            logger.info(f"Synced {len(commands)} commands on ready")
-            for cmd in commands:
+            logger.info("Syncing commands...")
+            synced_commands = await self.tree.sync()
+            logger.info(f"Successfully synced {len(synced_commands)} commands")
+            for cmd in synced_commands:
                 logger.info(f"Command available: {cmd.name}")
+        except discord.errors.Forbidden as e:
+            logger.error(
+                "Bot lacks 'applications.commands' scope. "
+                "Please re-invite the bot with the correct scope."
+            )
+            logger.error("You need to re-invite the bot with the 'applications.commands' scope.")
+            logger.error("Visit the Discord Developer Portal, go to your application's OAuth2 page,")
+            logger.error("and make sure 'applications.commands' is selected in the scopes.")
         except Exception as e:
-            logger.error(f"Error syncing commands on ready: {str(e)}")
+            logger.error(f"Error syncing commands: {str(e)}")
             logger.error(traceback.format_exc())
 
     async def on_command_error(self, ctx, error):
