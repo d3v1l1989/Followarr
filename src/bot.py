@@ -74,19 +74,22 @@ class FollowarrBot(commands.Bot):
         @self.tree.command(name="follow", description="Follow a TV show")
         @app_commands.describe(show_name="The name of the show you want to follow")
         async def follow(interaction: discord.Interaction, show_name: str):
-            await interaction.response.defer(ephemeral=False)
-            
+            """Follow a TV show."""
             try:
+                await interaction.response.defer(ephemeral=False)
+                
+                # Search for the show
                 show = await self.tvdb_client.search_show(show_name)
                 if not show:
                     await interaction.followup.send(f"Could not find show: {show_name}")
                     return
                 
-                user_shows = self.db.get_user_subscriptions(str(interaction.user.id))
-                if any(s['id'] == show.id for s in user_shows):
+                # Check if user is already following the show
+                if self.db.is_user_subscribed(str(interaction.user.id), show.id):
                     await interaction.followup.send(f"You are already following {show.name}!")
                     return
                 
+                # Add subscription
                 self.db.add_subscription(str(interaction.user.id), show.id, show.name)
                 
                 # Create follow confirmation embed
@@ -134,6 +137,7 @@ class FollowarrBot(commands.Bot):
 
         @self.tree.command(name="list", description="List all shows you're following")
         async def list_shows(interaction: discord.Interaction):
+            """List all shows you're following."""
             try:
                 await interaction.response.defer()
                 
@@ -164,6 +168,7 @@ class FollowarrBot(commands.Bot):
         @self.tree.command(name="unfollow", description="Unfollow a TV show")
         @app_commands.describe(show_name="The name of the show you want to unfollow")
         async def unfollow(interaction: discord.Interaction, show_name: str):
+            """Unfollow a TV show."""
             try:
                 await interaction.response.defer()
                 
@@ -209,7 +214,7 @@ class FollowarrBot(commands.Bot):
                 await interaction.followup.send("An error occurred while processing your request. Please try again later.")
 
         @self.tree.command(name="calendar", description="Show upcoming episodes for your followed shows")
-        async def calendar(self, interaction: discord.Interaction):
+        async def calendar(interaction: discord.Interaction):
             """Show upcoming episodes for followed shows."""
             try:
                 await interaction.response.defer()
