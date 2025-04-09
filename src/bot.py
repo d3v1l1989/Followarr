@@ -232,6 +232,8 @@ class FollowarrBot(commands.Bot):
                     try:
                         episodes = await self.tvdb_client.get_upcoming_episodes(show['id'])
                         for episode in episodes:
+                            # Add debug logging to see the episode structure
+                            logger.debug(f"Episode data for {show['name']}: {episode}")
                             episode['show_name'] = show['name']
                             all_episodes.append(episode)
                     except Exception as e:
@@ -291,8 +293,9 @@ class FollowarrBot(commands.Bot):
                                 next_air_date = datetime.strptime(next_air_date_str, "%Y-%m-%d")
                                 next_air_date = next_air_date.replace(tzinfo=timezone.utc)
                                 
-                            season = next_episode.get('season', '?')
-                            episode = next_episode.get('episode', '?')
+                            # Try different field names for season and episode
+                            season = next_episode.get('seasonNumber') or next_episode.get('season') or next_episode.get('season_number') or '?'
+                            episode = next_episode.get('episodeNumber') or next_episode.get('episode') or next_episode.get('episode_number') or '?'
                             episode_name = next_episode.get('name', 'TBA')
                             
                             next_ep_text = f"{next_episode['show_name']} S{season}E{episode}"
@@ -342,8 +345,9 @@ class FollowarrBot(commands.Bot):
                                 current_date = formatted_date
                                 embed.add_field(name=formatted_date, value="", inline=False)
                             
-                            season = episode.get('season', '?')
-                            episode_num = episode.get('episode', '?')
+                            # Try different field names for season and episode
+                            season = episode.get('seasonNumber', '?')
+                            episode_num = episode.get('number', '?')
                             episode_name = episode.get('name', '')
                             
                             episode_text = f"{episode['show_name']} S{season}E{episode_num}"
