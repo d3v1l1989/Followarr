@@ -294,8 +294,8 @@ class FollowarrBot(commands.Bot):
                                 next_air_date = next_air_date.replace(tzinfo=timezone.utc)
                                 
                             # Try different field names for season and episode
-                            season = next_episode.get('seasonNumber') or next_episode.get('season') or next_episode.get('season_number') or '?'
-                            episode = next_episode.get('episodeNumber') or next_episode.get('episode') or next_episode.get('episode_number') or '?'
+                            season = next_episode.get('seasonNumber', '?')
+                            episode = next_episode.get('number', '?')
                             episode_name = next_episode.get('name', 'TBA')
                             
                             next_ep_text = f"{next_episode['show_name']} S{season}E{episode}"
@@ -319,58 +319,64 @@ class FollowarrBot(commands.Bot):
 
                 # Create embeds for each month
                 for month, episodes in monthly_episodes.items():
-                    embed = discord.Embed(
-                        title=f"{month}",
-                        color=discord.Color.blue()
-                    )
+                    # Sort episodes by date
+                    episodes.sort(key=lambda x: x.get('aired', ''))
                     
-                    current_date = None
-                    for episode in episodes:
-                        air_date_str = episode.get('aired')
-                        if not air_date_str:
-                            continue
-                            
-                        try:
-                            if 'T' in air_date_str:
-                                air_date = datetime.fromisoformat(air_date_str.replace('Z', '+00:00'))
-                            else:
-                                air_date = datetime.strptime(air_date_str, "%Y-%m-%d")
-                                air_date = air_date.replace(tzinfo=timezone.utc)
+                    # Split episodes into chunks of 25 (Discord's field limit)
+                    episode_chunks = [episodes[i:i + 25] for i in range(0, len(episodes), 25)]
+                    
+                    for chunk_index, episode_chunk in enumerate(episode_chunks):
+                        embed = discord.Embed(
+                            title=f"{month}" + (f" (Part {chunk_index + 1})" if len(episode_chunks) > 1 else ""),
+                            color=discord.Color.blue()
+                        )
+                        
+                        current_date = None
+                        for episode in episode_chunk:
+                            air_date_str = episode.get('aired')
+                            if not air_date_str:
+                                continue
                                 
-                            formatted_date = air_date.strftime("%A, %B %d")
-                            
-                            if current_date != formatted_date:
-                                if current_date is not None:
-                                    embed.add_field(name="", value="──────────", inline=False)
-                                current_date = formatted_date
-                                embed.add_field(name=formatted_date, value="", inline=False)
-                            
-                            # Try different field names for season and episode
-                            season = episode.get('seasonNumber', '?')
-                            episode_num = episode.get('number', '?')
-                            episode_name = episode.get('name', '')
-                            
-                            episode_text = f"{episode['show_name']} S{season}E{episode_num}"
-                            if episode_name and episode_name.lower() != 'tba':
-                                episode_text += f" - {episode_name}"
-                            
+                            try:
+                                if 'T' in air_date_str:
+                                    air_date = datetime.fromisoformat(air_date_str.replace('Z', '+00:00'))
+                                else:
+                                    air_date = datetime.strptime(air_date_str, "%Y-%m-%d")
+                                    air_date = air_date.replace(tzinfo=timezone.utc)
+                                    
+                                formatted_date = air_date.strftime("%A, %B %d")
+                                
+                                if current_date != formatted_date:
+                                    if current_date is not None:
+                                        embed.add_field(name="", value="──────────", inline=False)
+                                    current_date = formatted_date
+                                    embed.add_field(name=formatted_date, value="", inline=False)
+                                
+                                season = episode.get('seasonNumber', '?')
+                                episode_num = episode.get('number', '?')
+                                episode_name = episode.get('name', '')
+                                
+                                episode_text = f"{episode['show_name']} S{season}E{episode_num}"
+                                if episode_name and episode_name.lower() != 'tba':
+                                    episode_text += f" - {episode_name}"
+                                
+                                embed.add_field(
+                                    name=episode_text,
+                                    value="",
+                                    inline=False
+                                )
+                            except (ValueError, TypeError) as e:
+                                logger.error(f"Error processing episode date: {e}")
+                                continue
+                        
+                        if not embed.fields:
                             embed.add_field(
-                                name=episode_text,
-                                value="",
+                                name="No Episodes",
+                                value="No upcoming episodes this month",
                                 inline=False
                             )
-                        except (ValueError, TypeError) as e:
-                            logger.error(f"Error processing episode date: {e}")
-                            continue
-                    
-                    if not embed.fields:
-                        embed.add_field(
-                            name="No Episodes",
-                            value="No upcoming episodes this month",
-                            inline=False
-                        )
-                    
-                    embeds.append(embed)
+                        
+                        embeds.append(embed)
 
                 # Send all embeds
                 await interaction.followup.send(embeds=embeds)
