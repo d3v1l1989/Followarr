@@ -229,7 +229,7 @@ class TVDBClient:
                 return []
 
             episodes = []
-            page = 1
+            page = 0  # Start from page 0
             while True:
                 # TVDB API v4 parameters
                 params = {
@@ -262,7 +262,7 @@ class TVDBClient:
                     episodes.extend(page_episodes)
                     
                     # Check if there are more pages
-                    if "links" in response and "next" in response["links"]:
+                    if "links" in response and "next" in response["links"] and response["links"]["next"]:
                         page += 1
                     else:
                         break
