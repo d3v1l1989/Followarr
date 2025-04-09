@@ -23,6 +23,8 @@ class WebhookServer:
                 try:
                     # Try to parse the JSON
                     payload = json.loads(body)
+                    # Log the full payload for debugging
+                    logger.info(f"Received Tautulli webhook payload: {json.dumps(payload, indent=2)}")
                 except json.JSONDecodeError as e:
                     # Log the raw body for debugging
                     logger.warning(f"Invalid JSON received from Tautulli. Raw body: {body.decode('utf-8', errors='ignore')}")
@@ -35,11 +37,16 @@ class WebhookServer:
                         }
                     )
 
-                # Log only essential information
-                logger.info(f"Received Tautulli webhook: {payload.get('event', 'unknown_event')}")
+                # Log essential information
+                event = payload.get('event', 'unknown_event')
+                media_type = payload.get('media_type', 'unknown')
+                title = payload.get('title', 'unknown')
+                grandparent_title = payload.get('grandparent_title', 'unknown')
+                logger.info(f"Processing Tautulli webhook - Event: {event}, Media Type: {media_type}, Title: {title}, Show: {grandparent_title}")
                 
                 # Validate required fields
                 if not self._validate_webhook_payload(payload):
+                    logger.warning(f"Missing required fields in webhook payload: {json.dumps(payload, indent=2)}")
                     return JSONResponse(
                         status_code=400,
                         content={
@@ -50,6 +57,7 @@ class WebhookServer:
 
                 # Process the webhook
                 await self._handle_tautulli_webhook(payload)
+                logger.info(f"Successfully processed Tautulli webhook for {grandparent_title}")
                 return JSONResponse(content={"status": "success"})
 
             except Exception as e:
