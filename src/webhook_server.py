@@ -90,9 +90,9 @@ class WebhookServer:
         if payload.get('event') == 'media.added' and payload.get('media_type') == 'episode':
             required_fields.extend([
                 'grandparent_title',  # Show name
-                'parent_index',       # Season number
-                'index',             # Episode number
-                'title',             # Episode name
+                'parent_media_index', # Season number
+                'media_index',       # Episode number
+                'title',            # Episode name
                 'originally_available_at'  # Air date
             ])
 
@@ -132,9 +132,9 @@ class WebhookServer:
             # Check for required episode fields
             required_fields = {
                 'grandparent_title': str,  # Show name
-                'parent_index': int,       # Season number
-                'index': int,             # Episode number
-                'title': str,             # Episode name
+                'parent_media_index': (int, str), # Season number (can be string or int)
+                'media_index': (int, str),       # Episode number (can be string or int)
+                'title': str,            # Episode name
                 'originally_available_at': str  # Air date
             }
 
@@ -145,7 +145,12 @@ class WebhookServer:
                 
                 # Try to convert to expected type
                 try:
-                    if field_type == int:
+                    if isinstance(field_type, tuple):  # Multiple types allowed
+                        if int in field_type:
+                            int(payload[field])  # Try to convert to int
+                        elif str in field_type and not isinstance(payload[field], str):
+                            str(payload[field])  # Try to convert to str
+                    elif field_type == int:
                         int(payload[field])
                     elif field_type == str and not isinstance(payload[field], str):
                         str(payload[field])
