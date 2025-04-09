@@ -482,7 +482,6 @@ class FollowarrBot(commands.Bot):
             episode_title = payload.get('title')
             episode_summary = payload.get('summary')
             air_date = payload.get('originally_available_at')
-            thumb = payload.get('thumb')
 
             logger.info(f"Processing episode notification for {show_name} S{season_num}E{episode_num}")
 
@@ -494,6 +493,12 @@ class FollowarrBot(commands.Bot):
 
             logger.info(f"Found {len(users)} users following {show_name}")
 
+            # Get show details from TVDB to get the poster
+            show = await self.tvdb_client.search_show(show_name)
+            poster_url = None
+            if show and show.image_url:
+                poster_url = show.image_url
+
             # Create embed for the notification
             embed = discord.Embed(
                 title=f"🎬 New Episode: {show_name}",
@@ -501,8 +506,8 @@ class FollowarrBot(commands.Bot):
                 color=discord.Color.blue()
             )
             embed.add_field(name="Air Date", value=air_date, inline=True)
-            if thumb:
-                embed.set_thumbnail(url=thumb)
+            if poster_url:
+                embed.set_thumbnail(url=poster_url)
 
             # Send DM to each user
             for user in users:
