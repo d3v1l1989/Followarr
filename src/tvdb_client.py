@@ -211,7 +211,7 @@ class TVDBClient:
         """Get all episodes for a series."""
         try:
             # First check if series exists
-            series_response = await self._make_request(f"/series/{series_id}")
+            series_response = await self._make_request('GET', f"series/{series_id}")
             if not series_response or "data" not in series_response:
                 logger.error(f"Series {series_id} not found")
                 return []
@@ -227,7 +227,7 @@ class TVDBClient:
                     "order": "asc"    # Ascending order
                 }
                 
-                response = await self._make_request(f"/series/{series_id}/episodes", params=params)
+                response = await self._make_request('GET', f"series/{series_id}/episodes", params=params)
                 if not response:
                     logger.error(f"No episodes found for series {series_id}")
                     return []
