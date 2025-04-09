@@ -303,7 +303,7 @@ Followarr uses semantic versioning (MAJOR.MINOR.PATCH):
 
 ## 📸 Image Credits
 
-- Followarr logo by [PuksThePirate](https://github.com/PuksThePirate)
+- Followarr logo by PuksThePirate
 
 ## ☕ Support the Project
 
