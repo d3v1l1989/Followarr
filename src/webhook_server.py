@@ -26,10 +26,24 @@ class WebhookServer:
         @self.app.post("/webhook/tautulli")
         async def tautulli_webhook(request: Request):
             try:
+                # Log request headers for debugging
+                logger.info(f"Received webhook request from {request.client.host}")
+                logger.debug(f"Request headers: {dict(request.headers)}")
+                
                 # Log the raw request body for debugging
                 raw_body = await request.body()
-                logger.info(f"Received webhook request from {request.client.host}")
-                logger.debug(f"Raw request body: {raw_body.decode() if raw_body else 'Empty body'}")
+                if not raw_body:
+                    logger.error("Received empty webhook request body")
+                    return JSONResponse(
+                        status_code=400,
+                        content={
+                            "status": "error",
+                            "message": "Empty request body",
+                            "detail": "Tautulli webhook sent an empty request. Please check your Tautulli webhook configuration."
+                        }
+                    )
+                
+                logger.debug(f"Raw request body: {raw_body.decode()}")
                 
                 # Try to parse the JSON
                 try:
@@ -37,7 +51,7 @@ class WebhookServer:
                     logger.debug(f"Parsed JSON payload: {json.dumps(payload, indent=2)}")
                 except json.JSONDecodeError as e:
                     logger.error(f"Failed to parse JSON: {str(e)}")
-                    logger.error(f"Raw body that failed to parse: {raw_body.decode() if raw_body else 'Empty body'}")
+                    logger.error(f"Raw body that failed to parse: {raw_body.decode()}")
                     return JSONResponse(
                         status_code=400,
                         content={
@@ -83,36 +97,60 @@ class WebhookServer:
         # Basic required fields
         required_fields = ['event', 'media_type']
         
-        # For media.added events, check additional required fields
-        if payload.get('event') == 'media.added' and payload.get('media_type') == 'episode':
-            required_fields.extend([
-                'grandparent_title',  # Show name
-                'parent_media_index', # Season number
-                'media_index',       # Episode number
-                'title',            # Episode name
-                'originally_available_at'  # Air date
-            ])
-
         # Check if all required fields are present
         missing_fields = [field for field in required_fields if field not in payload]
         if missing_fields:
             logger.warning(f"Missing required fields in webhook payload: {missing_fields}")
             return False
 
+        # For media.added events, check additional required fields based on media type
+        if payload.get('event') == 'media.added':
+            if payload.get('media_type') == 'episode':
+                # TV show episode specific fields
+                episode_fields = [
+                    'grandparent_title',  # Show name
+                    'parent_media_index', # Season number
+                    'media_index',       # Episode number
+                    'title',            # Episode name
+                    'originally_available_at'  # Air date
+                ]
+                missing_fields = [field for field in episode_fields if field not in payload]
+                if missing_fields:
+                    logger.warning(f"Missing required fields for episode: {missing_fields}")
+                    return False
+            elif payload.get('media_type') == 'movie':
+                # Movie specific fields
+                movie_fields = [
+                    'title',            # Movie name
+                    'originally_available_at'  # Release date
+                ]
+                missing_fields = [field for field in movie_fields if field not in payload]
+                if missing_fields:
+                    logger.warning(f"Missing required fields for movie: {missing_fields}")
+                    return False
+            else:
+                logger.warning(f"Unsupported media type: {payload.get('media_type')}")
+                return False
+
         return True
 
     async def _handle_tautulli_webhook(self, payload: Dict):
         try:
-            # Check if this is a recently added episode
-            if payload.get('event') == 'media.added' and payload.get('media_type') == 'episode':
-                logger.info(f"Processing media.added event for episode: {payload.get('title', 'Unknown')}")
+            # Check if this is a recently added media item
+            if payload.get('event') == 'media.added':
+                media_type = payload.get('media_type')
+                logger.info(f"Processing media.added event for {media_type}: {payload.get('title', 'Unknown')}")
                 
-                # Validate episode data
-                if not self._validate_episode_data(payload):
-                    logger.warning("Invalid episode data in webhook payload")
+                # Validate media data
+                if not self._validate_webhook_payload(payload):
+                    logger.warning("Invalid media data in webhook payload")
                     return
                 
-                await self.notification_handler(payload)
+                # Only process TV show episodes
+                if media_type == 'episode':
+                    await self.notification_handler(payload)
+                else:
+                    logger.info(f"Ignoring {media_type} notification")
             else:
                 logger.debug(f"Ignoring event: {payload.get('event')} for media type: {payload.get('media_type')}")
 
