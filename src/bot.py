@@ -304,7 +304,7 @@ class FollowarrBot(commands.Bot):
                             
                             summary_embed.add_field(
                                 name="Next Episode",
-                                value=f"{next_ep_text}\n{next_air_date.strftime('%B %d, %Y')}",
+                                value=f"{next_ep_text}\n{next_air_date.strftime('%B %d, %Y at %I:%M %p %Z')}",
                                 inline=False
                             )
                         except (ValueError, TypeError) as e:
