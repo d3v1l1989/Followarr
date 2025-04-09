@@ -287,27 +287,27 @@ The bot requires several environment variables to be set in the `.env` file:
 Here are some screenshots of the bot in action:
 
 ### Calendar Command
-<img src="docs/screenshots/resized/calendar.png" alt="Calendar Command" width="300"/>
+<img src="docs/screenshots/calendar.png" alt="Calendar Command" width="300"/>
 
 _View upcoming episodes for your followed shows_
 
 ### Follow Command
-<img src="docs/screenshots/resized/follow.png" alt="Follow Command" width="450"/>
+<img src="docs/screenshots/follow.png" alt="Follow Command" width="450"/>
 
 _Follow a new TV show_
 
 ### Unfollow Command
-<img src="docs/screenshots/resized/unfollow.png" alt="Unfollow Command" width="450"/>
+<img src="docs/screenshots/unfollow.png" alt="Unfollow Command" width="450"/>
 
 _Unfollow a TV show_
 
 ### List Command
-<img src="docs/screenshots/resized/list.png" alt="List Command" width="300"/>
+<img src="docs/screenshots/list.png" alt="List Command" width="300"/>
 
 _View all your followed shows_
 
 ### Episode Notification
-<img src="docs/screenshots/resized/notification.png" alt="Episode Notification" width="450"/>
+<img src="docs/screenshots/notification.png" alt="Episode Notification" width="450"/>
 
 _Receive notifications for new episodes_
 
