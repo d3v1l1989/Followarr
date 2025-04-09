@@ -209,47 +209,43 @@ class TVDBClient:
 
     async def get_episodes(self, series_id: str) -> List[Dict]:
         try:
-            # Use the extended endpoint to get all episodes
-            response = await self._make_request('GET', f'series/{series_id}/episodes/extended')
-            logger.info(f"TVDB API response for series {series_id}: {json.dumps(response, indent=2)}")
-            
-            if not response or 'data' not in response:
-                logger.error(f"Invalid TVDB API response for series {series_id}")
+            # First get the series info to check if it exists
+            series = await self.get_series(series_id)
+            if not series:
+                logger.error(f"Could not find series with ID {series_id}")
                 return []
 
-            # Get episodes from the response
-            episodes = []
-            if 'episodes' in response['data']:
-                episodes = response['data']['episodes']
-            elif 'episodes' in response:
-                episodes = response['episodes']
+            # Use the episodes endpoint with pagination
+            page = 1
+            all_episodes = []
             
-            # If no episodes found in the first page, try pagination
-            if not episodes and 'links' in response:
-                page = 1
-                while True:
-                    next_page = await self._make_request('GET', f'series/{series_id}/episodes/extended?page={page}')
-                    if not next_page or 'data' not in next_page:
-                        break
-                        
-                    page_episodes = []
-                    if 'episodes' in next_page['data']:
-                        page_episodes = next_page['data']['episodes']
-                    elif 'episodes' in next_page:
-                        page_episodes = next_page['episodes']
-                        
-                    if not page_episodes:
-                        break
-                        
-                    episodes.extend(page_episodes)
-                    page += 1
+            while True:
+                response = await self._make_request('GET', f'series/{series_id}/episodes?page={page}')
+                logger.info(f"TVDB API response for series {series_id} page {page}: {json.dumps(response, indent=2)}")
+                
+                if not response or 'data' not in response:
+                    logger.error(f"Invalid TVDB API response for series {series_id}")
+                    break
 
-            if not episodes:
+                episodes = response.get('data', [])
+                if not episodes:
+                    break
+
+                all_episodes.extend(episodes)
+                
+                # Check if there are more pages
+                links = response.get('links', {})
+                if not links.get('next'):
+                    break
+                    
+                page += 1
+
+            if not all_episodes:
                 logger.error(f"No episodes found for series {series_id}")
                 return []
 
-            logger.info(f"Found {len(episodes)} episodes for series {series_id}")
-            return episodes
+            logger.info(f"Found {len(all_episodes)} episodes for series {series_id}")
+            return all_episodes
 
         except Exception as e:
             logger.error(f"Error getting episodes: {e}")
