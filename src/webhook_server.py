@@ -26,16 +26,18 @@ class WebhookServer:
         @self.app.post("/webhook/tautulli")
         async def tautulli_webhook(request: Request):
             try:
-                # Get the raw body first
-                body = await request.body()
+                # Log the raw request body for debugging
+                raw_body = await request.body()
+                logger.info(f"Received webhook request from {request.client.host}")
+                logger.debug(f"Raw request body: {raw_body.decode() if raw_body else 'Empty body'}")
+                
+                # Try to parse the JSON
                 try:
-                    # Try to parse the JSON
-                    payload = json.loads(body)
-                    # Log the full payload for debugging
-                    logger.info(f"Received Tautulli webhook payload: {json.dumps(payload, indent=2)}")
+                    payload = await request.json()
+                    logger.debug(f"Parsed JSON payload: {json.dumps(payload, indent=2)}")
                 except json.JSONDecodeError as e:
-                    # Log the raw body for debugging
-                    logger.warning(f"Invalid JSON received from Tautulli. Raw body: {body.decode('utf-8', errors='ignore')}")
+                    logger.error(f"Failed to parse JSON: {str(e)}")
+                    logger.error(f"Raw body that failed to parse: {raw_body.decode() if raw_body else 'Empty body'}")
                     return JSONResponse(
                         status_code=400,
                         content={
@@ -44,30 +46,25 @@ class WebhookServer:
                             "detail": str(e)
                         }
                     )
-
-                # Log essential information
-                event = payload.get('event', 'unknown_event')
-                media_type = payload.get('media_type', 'unknown')
-                title = payload.get('title', 'unknown')
-                grandparent_title = payload.get('grandparent_title', 'unknown')
-                logger.info(f"Processing Tautulli webhook - Event: {event}, Media Type: {media_type}, Title: {title}, Show: {grandparent_title}")
                 
-                # Validate required fields
+                # Validate the webhook payload
                 if not self._validate_webhook_payload(payload):
-                    logger.warning(f"Missing required fields in webhook payload: {json.dumps(payload, indent=2)}")
+                    logger.warning(f"Invalid webhook payload: {json.dumps(payload, indent=2)}")
                     return JSONResponse(
                         status_code=400,
                         content={
                             "status": "error",
-                            "message": "Missing required fields in webhook payload"
+                            "message": "Invalid webhook payload",
+                            "detail": "Missing required fields"
                         }
                     )
-
+                
                 # Process the webhook
                 await self._handle_tautulli_webhook(payload)
-                logger.info(f"Successfully processed Tautulli webhook for {grandparent_title}")
+                
+                logger.info(f"Successfully processed Tautulli webhook for {payload.get('grandparent_title', 'Unknown')}")
                 return JSONResponse(content={"status": "success"})
-
+                
             except Exception as e:
                 logger.error(f"Error processing webhook: {str(e)}", exc_info=True)
                 return JSONResponse(
