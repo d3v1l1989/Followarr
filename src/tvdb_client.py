@@ -213,15 +213,44 @@ class TVDBClient:
             response = await self._make_request('GET', f'series/{series_id}/episodes/extended')
             logger.info(f"TVDB API response for series {series_id}: {json.dumps(response, indent=2)}")
             
-            if response and 'data' in response:
-                if 'episodes' in response['data']:
-                    return response['data']['episodes']
-                elif 'episodes' in response:
-                    return response['episodes']
-                else:
-                    logger.error(f"Unexpected TVDB API response structure for series {series_id}")
-                    return []
-            return []
+            if not response or 'data' not in response:
+                logger.error(f"Invalid TVDB API response for series {series_id}")
+                return []
+
+            # Get episodes from the response
+            episodes = []
+            if 'episodes' in response['data']:
+                episodes = response['data']['episodes']
+            elif 'episodes' in response:
+                episodes = response['episodes']
+            
+            # If no episodes found in the first page, try pagination
+            if not episodes and 'links' in response:
+                page = 1
+                while True:
+                    next_page = await self._make_request('GET', f'series/{series_id}/episodes/extended?page={page}')
+                    if not next_page or 'data' not in next_page:
+                        break
+                        
+                    page_episodes = []
+                    if 'episodes' in next_page['data']:
+                        page_episodes = next_page['data']['episodes']
+                    elif 'episodes' in next_page:
+                        page_episodes = next_page['episodes']
+                        
+                    if not page_episodes:
+                        break
+                        
+                    episodes.extend(page_episodes)
+                    page += 1
+
+            if not episodes:
+                logger.error(f"No episodes found for series {series_id}")
+                return []
+
+            logger.info(f"Found {len(episodes)} episodes for series {series_id}")
+            return episodes
+
         except Exception as e:
             logger.error(f"Error getting episodes: {e}")
             return []
