@@ -332,6 +332,8 @@ class FollowarrBot(commands.Bot):
                         )
                         
                         current_date = None
+                        current_episodes = []
+                        
                         for episode in episode_chunk:
                             air_date_str = episode.get('aired')
                             if not air_date_str:
@@ -347,27 +349,38 @@ class FollowarrBot(commands.Bot):
                                 formatted_date = air_date.strftime("%A, %B %d")
                                 
                                 if current_date != formatted_date:
-                                    if current_date is not None:
-                                        embed.add_field(name="", value="──────────", inline=False)
+                                    if current_episodes:
+                                        # Add previous day's episodes as a single field
+                                        embed.add_field(
+                                            name=current_date,
+                                            value="\n".join(current_episodes),
+                                            inline=False
+                                        )
+                                        current_episodes = []
+                                    
                                     current_date = formatted_date
-                                    embed.add_field(name=formatted_date, value="", inline=False)
                                 
                                 season = episode.get('seasonNumber', '?')
                                 episode_num = episode.get('number', '?')
                                 episode_name = episode.get('name', '')
                                 
-                                episode_text = f"{episode['show_name']} S{season}E{episode_num}"
+                                episode_text = f"• {episode['show_name']} S{season}E{episode_num}"
                                 if episode_name and episode_name.lower() != 'tba':
                                     episode_text += f" - {episode_name}"
                                 
-                                embed.add_field(
-                                    name=episode_text,
-                                    value="",
-                                    inline=False
-                                )
+                                current_episodes.append(episode_text)
+                                
                             except (ValueError, TypeError) as e:
                                 logger.error(f"Error processing episode date: {e}")
                                 continue
+                        
+                        # Add the last day's episodes
+                        if current_episodes:
+                            embed.add_field(
+                                name=current_date,
+                                value="\n".join(current_episodes),
+                                inline=False
+                            )
                         
                         if not embed.fields:
                             embed.add_field(
