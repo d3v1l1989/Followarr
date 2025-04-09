@@ -487,7 +487,7 @@ class FollowarrBot(commands.Bot):
             logger.info(f"Processing episode notification for {show_name} S{season_num}E{episode_num}")
 
             # Get all users who follow this show
-            users = await self.db.get_users_by_show(show_name)
+            users = self.db.get_users_by_show(show_name)
             if not users:
                 logger.info(f"No users follow {show_name}")
                 return
@@ -504,22 +504,23 @@ class FollowarrBot(commands.Bot):
             if thumb:
                 embed.set_thumbnail(url=thumb)
 
-            # Send notification to each user
-            for user_id in users:
+            # Send DM to each user
+            for user in users:
                 try:
-                    user = await self.fetch_user(user_id)
-                    if user:
-                        await user.send(embed=embed)
-                        logger.info(f"Sent notification to user {user_id} for {show_name} S{season_num}E{episode_num}")
+                    discord_user = await self.fetch_user(int(user['discord_id']))
+                    if discord_user:
+                        await discord_user.send(embed=embed)
+                        logger.info(f"Sent notification to {discord_user.name}")
                     else:
-                        logger.warning(f"Could not find user {user_id}")
+                        logger.warning(f"Could not find Discord user with ID {user['discord_id']}")
                 except discord.Forbidden:
-                    logger.warning(f"Could not send DM to user {user_id} (DMs disabled)")
+                    logger.warning(f"Could not send DM to user {user['name']} - DMs are disabled")
                 except Exception as e:
-                    logger.error(f"Error sending notification to user {user_id}: {str(e)}")
+                    logger.error(f"Error sending notification to user {user['name']}: {e}")
 
         except Exception as e:
-            logger.error(f"Error handling episode notification: {str(e)}", exc_info=True)
+            logger.error(f"Error handling episode notification: {e}")
+            logger.error(traceback.format_exc())
 
 def main():
     try:

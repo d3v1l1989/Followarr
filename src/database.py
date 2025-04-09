@@ -132,39 +132,28 @@ class Database:
         finally:
             session.close()
 
-    async def get_users_by_show(self, show_name: str) -> List[Dict]:
+    def get_users_by_show(self, show_name: str) -> List[Dict]:
         """Get all users who follow a specific show."""
+        session = self.Session()
         try:
-            async with self.engine.connect() as conn:
-                # First get the TVDB ID for the show
-                show_result = await conn.execute(
-                    select(self.shows).where(self.shows.c.name == show_name)
-                )
-                show = show_result.first()
-                
-                if not show:
-                    logger.warning(f"Show {show_name} not found in database")
-                    return []
-                
-                # Then get all users who follow this show
-                user_result = await conn.execute(
-                    select(self.user_shows).where(self.user_shows.c.show_id == show.id)
-                )
-                users = user_result.fetchall()
-                
-                if not users:
-                    logger.info(f"No users follow {show_name}")
-                    return []
-                
-                # Get user details
-                user_ids = [user.user_id for user in users]
-                user_details_result = await conn.execute(
-                    select(self.users).where(self.users.c.id.in_(user_ids))
-                )
-                user_details = user_details_result.fetchall()
-                
-                return [dict(user) for user in user_details]
+            # Get all users who follow this show
+            subscriptions = session.query(Subscription).filter_by(show_name=show_name).all()
+            
+            if not subscriptions:
+                logger.info(f"No users follow {show_name}")
+                return []
+            
+            # Get unique user IDs
+            user_ids = list(set(sub.user_id for sub in subscriptions))
+            
+            # Return user details
+            return [{
+                'discord_id': user_id,
+                'name': f"User {user_id}"  # We don't store usernames, just IDs
+            } for user_id in user_ids]
                 
         except Exception as e:
             logger.error(f"Error getting users by show: {e}")
-            return [] 
+            return []
+        finally:
+            session.close() 
