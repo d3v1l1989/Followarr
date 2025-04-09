@@ -211,8 +211,16 @@ class TVDBClient:
         try:
             # Use the extended endpoint to get all episodes
             response = await self._make_request('GET', f'series/{series_id}/episodes/extended')
-            if response and 'data' in response and 'episodes' in response['data']:
-                return response['data']['episodes']
+            logger.info(f"TVDB API response for series {series_id}: {json.dumps(response, indent=2)}")
+            
+            if response and 'data' in response:
+                if 'episodes' in response['data']:
+                    return response['data']['episodes']
+                elif 'episodes' in response:
+                    return response['episodes']
+                else:
+                    logger.error(f"Unexpected TVDB API response structure for series {series_id}")
+                    return []
             return []
         except Exception as e:
             logger.error(f"Error getting episodes: {e}")
@@ -260,6 +268,7 @@ class TVDBClient:
                 if datetime.fromisoformat(ep.get('aired', '').replace('Z', '+00:00')) <= three_months_later
             ]
             
+            logger.info(f"Found {len(upcoming)} upcoming episodes for series {series_id}")
             return upcoming
 
         except Exception as e:
