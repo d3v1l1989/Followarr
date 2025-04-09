@@ -214,13 +214,15 @@ class FollowarrBot(commands.Bot):
                 await interaction.followup.send("An error occurred while processing your request. Please try again later.")
 
         @self.tree.command(name="calendar", description="Shows upcoming episodes for all shows")
-        async def calendar(self, interaction: discord.Interaction):
+        async def calendar(interaction: discord.Interaction):
             """Shows upcoming episodes for all shows"""
             try:
+                await interaction.response.defer()
+                
                 # Get all shows from the database
                 shows = self.db.get_all_shows()
                 if not shows:
-                    await interaction.response.send_message("No shows are being tracked. Use `/add` to add shows.", ephemeral=True)
+                    await interaction.followup.send("No shows are being tracked. Use `/add` to add shows.")
                     return
 
                 # Get upcoming episodes for all shows
@@ -236,7 +238,7 @@ class FollowarrBot(commands.Bot):
                         continue
 
                 if not all_episodes:
-                    await interaction.response.send_message("No upcoming episodes found for any shows.", ephemeral=True)
+                    await interaction.followup.send("No upcoming episodes found for any shows.")
                     return
 
                 # Sort episodes by air date
@@ -256,7 +258,7 @@ class FollowarrBot(commands.Bot):
                 
                 # Add summary embed
                 summary_embed = discord.Embed(
-                    title="📺 Upcoming Episodes Summary",
+                    title="Upcoming Episodes Summary",
                     color=discord.Color.blue()
                 )
                 next_episode = all_episodes[0]
@@ -307,7 +309,7 @@ class FollowarrBot(commands.Bot):
                     embeds.append(embed)
 
                 # Send all embeds
-                await interaction.response.send_message(embeds=embeds)
+                await interaction.followup.send(embeds=embeds)
 
             except Exception as e:
                 logger.error(f"Error in calendar command: {str(e)}")
