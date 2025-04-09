@@ -209,7 +209,8 @@ class TVDBClient:
 
     async def get_episodes(self, series_id: str) -> List[Dict]:
         try:
-            response = await self._make_request('GET', f'series/{series_id}/episodes')
+            # Use the extended endpoint to get all episodes
+            response = await self._make_request('GET', f'series/{series_id}/episodes/extended')
             if response and 'data' in response:
                 return response['data']
             return []
