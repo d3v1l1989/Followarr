@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, select, MetaData, Table
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 import os
-from typing import List, Dict
+from typing import List, Dict, Any
 import logging
 from pathlib import Path
 
@@ -241,19 +241,20 @@ class Database:
             logger.error(f"Error removing follower: {str(e)}")
             return False
 
-    async def get_user_follows(self, user_id: int) -> List[str]:
-        """Get all shows a user is following."""
+    async def get_user_follows(self, user_id: str) -> List[Dict[str, Any]]:
+        """Get all shows followed by a user."""
         try:
-            logger.info(f"Getting shows followed by user: {user_id}")
-            session = await self.async_session()
-            async with session as session:
+            async with self.Session() as session:
                 result = await session.execute(
-                    select(self.follows.c.show_title)
-                    .where(self.follows.c.user_id == user_id)
+                    select(Show.title, Show.tvdb_id)
+                    .join(Follow)
+                    .where(Follow.user_id == user_id)
                 )
-                shows = result.scalars().all()
-                logger.info(f"User {user_id} follows {len(shows)} shows: {shows}")
-                return shows
+                shows = result.all()
+                
+                # Convert to list of dictionaries
+                return [{'show_title': show[0], 'show_id': show[1]} for show in shows]
+                
         except Exception as e:
             logger.error(f"Error getting user follows: {str(e)}")
             return [] 
