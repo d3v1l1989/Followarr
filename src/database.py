@@ -19,6 +19,10 @@ class Subscription:
 class Database:
     def __init__(self, database_url: str):
         """Initialize the database connection."""
+        # Convert sqlite:/// to sqlite+aiosqlite:///
+        if database_url.startswith('sqlite:///'):
+            database_url = database_url.replace('sqlite:///', 'sqlite+aiosqlite:///')
+        
         self.database_url = database_url
         self.engine = create_async_engine(
             database_url,

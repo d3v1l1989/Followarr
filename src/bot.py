@@ -64,10 +64,14 @@ class FollowarrBot(commands.Bot):
         self.tvdb_api_key = os.getenv('TVDB_API_KEY')
         self.plex_url = os.getenv('PLEX_URL')
         self.plex_token = os.getenv('PLEX_TOKEN')
-        self.database_url = os.getenv('DATABASE_URL', 'sqlite+aiosqlite:////app/data/followarr.db')
         
-        # Initialize components
-        self.db = Database(self.database_url)
+        # Initialize database with proper URL
+        db_url = os.getenv('DATABASE_URL', 'sqlite:////app/data/followarr.db')
+        if not db_url.startswith('sqlite+aiosqlite:///'):
+            db_url = db_url.replace('sqlite:///', 'sqlite+aiosqlite:///')
+        self.db = Database(db_url)
+        
+        # Initialize other components
         self.tvdb_client = TVDBClient(self.tvdb_api_key)
         self.plex_client = PlexClient(self.plex_url, self.plex_token)
         
