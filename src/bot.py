@@ -475,47 +475,56 @@ class FollowarrBot(commands.Bot):
         logger.error(f"Command error: {str(error)}")
         logger.error(traceback.format_exc())
 
-    async def handle_plex_notification(self, payload: Dict[str, Any]):
-        """
-        Handle Plex webhook notifications.
-        
-        Args:
-            payload (Dict[str, Any]): The webhook payload
-        """
+    async def handle_plex_notification(self, payload: Dict[str, Any]) -> None:
+        """Handle Plex notifications and send Discord messages."""
         try:
-            # Extract show information
-            show_name = payload.get('grandparent_title')
-            season_num = payload.get('parent_media_index')
-            episode_num = payload.get('media_index')
-            episode_title = payload.get('title')
+            logger.info(f"Processing Plex notification: {payload}")
+            
+            if payload.get('event') != 'media.added':
+                logger.info(f"Ignoring non-media.added event: {payload.get('event')}")
+                return
+                
+            if payload.get('media_type') != 'episode':
+                logger.info(f"Ignoring non-episode media: {payload.get('media_type')}")
+                return
+                
+            show_title = payload.get('grandparent_title')
+            if not show_title:
+                logger.error("Missing show title in notification payload")
+                return
+                
+            # Get all users following this show
+            followers = await self.db.get_show_followers(show_title)
+            if not followers:
+                logger.info(f"No followers found for show: {show_title}")
+                return
+                
+            logger.info(f"Found {len(followers)} followers for show: {show_title}")
+            
+            # Create the notification message
+            season = payload.get('parent_media_index')
+            episode = payload.get('media_index')
+            title = payload.get('title')
             air_date = payload.get('originally_available_at')
             summary = payload.get('summary')
             
-            # Get users following this show
-            users = self.db.get_users_following_show(show_name)
-            
-            if not users:
-                logger.info(f"No users following {show_name}")
-                return
-                
-            # Create notification message
-            embed = discord.Embed(
-                title=f"New Episode: {show_name}",
-                description=f"Season {season_num}, Episode {episode_num}: {episode_title}",
-                color=discord.Color.blue()
+            message = (
+                f"🎬 **New Episode Available!**\n\n"
+                f"**{show_title}** - S{season}E{episode}\n"
+                f"**Title:** {title}\n"
+                f"**Air Date:** {air_date}\n"
+                f"**Summary:** {summary}"
             )
             
-            if air_date:
-                embed.add_field(name="Air Date", value=air_date, inline=True)
-            if summary:
-                embed.add_field(name="Summary", value=summary, inline=False)
-                
-            # Send notifications to all following users
-            for user_id in users:
+            # Send notifications to all followers
+            for user_id in followers:
                 try:
                     user = await self.fetch_user(user_id)
-                    await user.send(embed=embed)
-                    logger.info(f"Sent notification to user {user_id} for {show_name}")
+                    if user:
+                        logger.info(f"Sending notification to user {user_id} for {show_title}")
+                        await user.send(message)
+                    else:
+                        logger.warning(f"Could not find user {user_id} to send notification")
                 except Exception as e:
                     logger.error(f"Error sending notification to user {user_id}: {str(e)}")
                     

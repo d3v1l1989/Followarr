@@ -31,9 +31,10 @@ class WebhookServer:
                 # Parse the JSON payload
                 payload_data = json.loads(payload)
                 
-                # Log the received webhook
+                # Log the received webhook with more details
                 event = payload_data.get('event')
                 logger.info(f"Received Plex webhook: {event}")
+                logger.debug(f"Full payload: {payload_data}")
                 
                 # Only process library.new events
                 if event == 'library.new':
@@ -42,6 +43,8 @@ class WebhookServer:
                     
                     # Check if it's a TV show episode
                     if metadata.get('type') == 'episode':
+                        logger.info(f"Processing new episode: {metadata.get('grandparentTitle')} S{metadata.get('parentIndex')}E{metadata.get('index')}")
+                        
                         # Transform the payload to match our notification format
                         notification_payload = {
                             'event': 'media.added',
@@ -56,6 +59,10 @@ class WebhookServer:
                         
                         # Call the callback with the transformed payload
                         await self.callback(notification_payload)
+                    else:
+                        logger.info(f"Ignoring non-episode content: {metadata.get('type')}")
+                else:
+                    logger.info(f"Ignoring non-library.new event: {event}")
                 
                 return JSONResponse(content={"status": "success"})
                 
