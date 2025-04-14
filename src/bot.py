@@ -103,10 +103,32 @@ class FollowarrBot(commands.Bot):
                 # Add the show to the user's follows
                 await self.db.add_follower(interaction.user.id, show.id, show.name)
                 
-                await interaction.response.send_message(
-                    f"✅ Now following: {show.name}",
-                    ephemeral=True
+                # Create follow confirmation embed
+                embed = discord.Embed(
+                    title="✅ Show Followed",
+                    description=f"You are now following: **{show.name}**",
+                    color=discord.Color.green()
                 )
+                
+                # Add show details to embed
+                if show.overview:
+                    overview = show.overview[:1024] + '...' if len(show.overview) > 1024 else show.overview
+                    embed.add_field(name="Overview", value=overview, inline=False)
+                
+                if show.status:
+                    status = show.status.get('name', 'Unknown') if isinstance(show.status, dict) else str(show.status)
+                    embed.add_field(name="Status", value=status, inline=True)
+                
+                if show.image_url:
+                    try:
+                        embed.set_thumbnail(url=show.image_url)
+                    except Exception as e:
+                        logger.error(f"Error setting thumbnail: {str(e)}")
+                
+                embed.set_footer(text="Data provided by TVDB")
+                
+                await interaction.response.send_message(embed=embed)
+                
             except Exception as e:
                 logger.error(f"Error in follow command: {str(e)}")
                 await interaction.response.send_message(
@@ -163,6 +185,9 @@ class FollowarrBot(commands.Bot):
                     await interaction.followup.send(f"Failed to unfollow {show_name}. Please try again.")
                     return
                 
+                # Get show details for the embed
+                show = await self.tvdb_client.search_show(show_name)
+                
                 # Create unfollow confirmation embed
                 embed = discord.Embed(
                     title="❌ Show Unfollowed",
@@ -170,15 +195,7 @@ class FollowarrBot(commands.Bot):
                     color=discord.Color.red()
                 )
                 
-                # Try to get show details for the embed
-                show = await self.tvdb_client.search_show(show_name)
                 if show:
-                    if hasattr(show, 'image_url') and show.image_url:
-                        try:
-                            embed.set_thumbnail(url=show.image_url)
-                        except Exception as e:
-                            logger.error(f"Error setting thumbnail: {str(e)}")
-                    
                     if show.overview:
                         overview = show.overview[:1024] + '...' if len(show.overview) > 1024 else show.overview
                         embed.add_field(name="Overview", value=overview, inline=False)
@@ -186,6 +203,12 @@ class FollowarrBot(commands.Bot):
                     if show.status:
                         status = show.status.get('name', 'Unknown') if isinstance(show.status, dict) else str(show.status)
                         embed.add_field(name="Status", value=status, inline=True)
+                    
+                    if show.image_url:
+                        try:
+                            embed.set_thumbnail(url=show.image_url)
+                        except Exception as e:
+                            logger.error(f"Error setting thumbnail: {str(e)}")
                     
                     embed.set_footer(text="Data provided by TVDB")
                 
