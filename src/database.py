@@ -156,4 +156,18 @@ class Database:
             logger.error(f"Error getting users by show: {e}")
             return []
         finally:
-            session.close() 
+            session.close()
+
+    async def get_show_followers(self, show_title: str) -> List[int]:
+        """Get all users following a specific show."""
+        try:
+            async with self.engine.begin() as conn:
+                result = await conn.execute(
+                    select(self.follows.c.user_id)
+                    .where(self.follows.c.show_title == show_title)
+                )
+                followers = result.scalars().all()
+                return followers
+        except Exception as e:
+            logger.error(f"Error getting show followers: {str(e)}")
+            return [] 
