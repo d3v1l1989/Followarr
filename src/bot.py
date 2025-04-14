@@ -488,80 +488,72 @@ class FollowarrBot(commands.Bot):
         logger.error(f"Command error: {str(error)}")
         logger.error(traceback.format_exc())
 
-    async def handle_plex_notification(self, payload: Dict[str, Any]) -> None:
-        """Handle Plex notifications and send Discord messages."""
+    async def handle_plex_notification(self, payload: dict):
+        """Handle incoming Plex notifications."""
         try:
             logger.info(f"Processing Plex notification: {payload}")
             
-            # Handle both library.new and media.added events
-            if payload.get('event') not in ['library.new', 'media.added']:
-                logger.info(f"Ignoring non-library.new/media.added event: {payload.get('event')}")
+            # Check if this is a new episode
+            if payload.get('event') != 'library.new':
+                logger.info(f"Ignoring non-library.new event: {payload.get('event')}")
                 return
-                
-            # Get metadata from the payload
+            
             metadata = payload.get('Metadata', {})
-            if not metadata:
-                logger.error("Missing Metadata in notification payload")
-                return
-                
             if metadata.get('type') != 'episode':
-                logger.info(f"Ignoring non-episode content: {metadata.get('type')}")
+                logger.info("Ignoring non-episode content")
                 return
-                
+            
+            # Get show title and episode info
             show_title = metadata.get('grandparentTitle')
             if not show_title:
-                logger.error("Missing show title in notification payload")
+                logger.error("No show title found in metadata")
                 return
                 
-            # Get all users following this show
+            logger.info(f"Processing new episode for show: {show_title}")
+            
+            # Get followers for this show
             followers = await self.db.get_show_followers(show_title)
             if not followers:
                 logger.info(f"No followers found for show: {show_title}")
                 return
                 
-            logger.info(f"Found {len(followers)} followers for show: {show_title}")
+            logger.info(f"Found {len(followers)} followers for {show_title}")
             
-            # Create the notification message
-            season = metadata.get('parentIndex')
-            episode = metadata.get('index')
-            title = metadata.get('title')
-            air_date = metadata.get('originallyAvailableAt')
-            summary = metadata.get('summary', 'No summary available')
+            # Get episode details
+            season_num = metadata.get('parentIndex')
+            episode_num = metadata.get('index')
+            episode_title = metadata.get('title', f'Episode {episode_num}')
             
-            # Try to get additional details from TVDB
-            try:
-                show = await self.tvdb_client.search_show(show_title)
-                if show:
-                    show_details = await self.tvdb_client.get_show_details(show['id'])
-                    if show_details:
-                        # Use TVDB's summary if available
-                        summary = show_details.get('overview', summary)
-            except Exception as e:
-                logger.warning(f"Could not get TVDB details for {show_title}: {str(e)}")
-                # Continue with Plex data if TVDB fails
+            # Get show poster URL
+            thumb = metadata.get('grandparentThumb', '')
+            if thumb:
+                # Convert relative URL to absolute
+                thumb = f"{self.plex_url}{thumb}?X-Plex-Token={self.plex_token}"
             
-            message = (
-                f"🎬 **New Episode Available!**\n\n"
-                f"**{show_title}** - S{season}E{episode}\n"
-                f"**Title:** {title}\n"
-                f"**Air Date:** {air_date}\n"
-                f"**Summary:** {summary}"
+            # Create embed for notification
+            embed = discord.Embed(
+                title=f"New Episode: {show_title}",
+                description=f"Season {season_num} Episode {episode_num}: {episode_title}",
+                color=discord.Color.blue()
             )
             
-            # Send notifications to all followers
+            if thumb:
+                embed.set_thumbnail(url=thumb)
+            
+            # Send notification to each follower
             for user_id in followers:
                 try:
                     user = await self.fetch_user(user_id)
                     if user:
-                        logger.info(f"Sending notification to user {user_id} for {show_title}")
-                        await user.send(message)
+                        await user.send(embed=embed)
+                        logger.info(f"Sent notification to user {user_id} for {show_title}")
                     else:
-                        logger.warning(f"Could not find user {user_id} to send notification")
+                        logger.warning(f"Could not find user {user_id}")
                 except Exception as e:
                     logger.error(f"Error sending notification to user {user_id}: {str(e)}")
                     
         except Exception as e:
-            logger.error(f"Error handling Plex notification: {str(e)}")
+            logger.error(f"Error processing Plex notification: {str(e)}")
             logger.error(traceback.format_exc())
 
 def main():

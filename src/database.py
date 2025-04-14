@@ -175,13 +175,16 @@ class Database:
     async def get_show_followers(self, show_title: str) -> List[int]:
         """Get all users following a specific show."""
         try:
+            logger.info(f"Looking for followers of show: {show_title}")
             session = await self.async_session()
             async with session as session:
+                # Get all followers for this show
                 result = await session.execute(
                     select(self.follows.c.user_id)
                     .where(self.follows.c.show_title == show_title)
                 )
                 followers = result.scalars().all()
+                logger.info(f"Found {len(followers)} followers for show: {show_title}")
                 return followers
         except Exception as e:
             logger.error(f"Error getting show followers: {str(e)}")
@@ -190,14 +193,31 @@ class Database:
     async def add_follower(self, user_id: int, show_title: str) -> bool:
         """Add a user as a follower of a show."""
         try:
+            logger.info(f"Adding follower {user_id} for show: {show_title}")
             session = await self.async_session()
             async with session as session:
+                # Check if already following
+                result = await session.execute(
+                    select(self.follows)
+                    .where(
+                        (self.follows.c.user_id == user_id) &
+                        (self.follows.c.show_title == show_title)
+                    )
+                )
+                existing = result.first()
+                
+                if existing:
+                    logger.info(f"User {user_id} already follows {show_title}")
+                    return True
+                
+                # Add new follower
                 stmt = self.follows.insert().values(
                     user_id=user_id,
                     show_title=show_title
                 )
                 await session.execute(stmt)
                 await session.commit()
+                logger.info(f"Successfully added follower {user_id} for show: {show_title}")
                 return True
         except Exception as e:
             logger.error(f"Error adding follower: {str(e)}")
@@ -222,6 +242,7 @@ class Database:
     async def get_user_follows(self, user_id: int) -> List[str]:
         """Get all shows a user is following."""
         try:
+            logger.info(f"Getting shows followed by user: {user_id}")
             session = await self.async_session()
             async with session as session:
                 result = await session.execute(
@@ -229,6 +250,7 @@ class Database:
                     .where(self.follows.c.user_id == user_id)
                 )
                 shows = result.scalars().all()
+                logger.info(f"User {user_id} follows {len(shows)} shows: {shows}")
                 return shows
         except Exception as e:
             logger.error(f"Error getting user follows: {str(e)}")
