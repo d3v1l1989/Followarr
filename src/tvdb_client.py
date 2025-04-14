@@ -142,6 +142,7 @@ class TVDBClient:
     async def search_show(self, query: str) -> Optional[TVShow]:
         """Search for a TV show by name."""
         try:
+            logger.info(f"Starting show search for query: {query}")
             # Search for the show
             data = await self._make_request("GET", f"search?query={query}")
             if not data or not data.get('data'):
@@ -150,9 +151,31 @@ class TVDBClient:
                 
             # Return the first result
             show_data = data['data'][0]
-            return TVShow.from_api_response(show_data)
+            logger.info(f"Found show: {show_data.get('name')} (ID: {show_data.get('id')})")
+            
+            # Log poster/image information
+            if 'image' in show_data:
+                logger.info(f"Show has image path: {show_data['image']}")
+            else:
+                logger.warning(f"No image path found for show: {show_data.get('name')}")
+                
+            if 'image_url' in show_data:
+                logger.info(f"Show has direct image URL: {show_data['image_url']}")
+            else:
+                logger.info(f"No direct image URL found for show: {show_data.get('name')}")
+                
+            show = TVShow.from_api_response(show_data)
+            
+            # Log final image URL after processing
+            if show.image_url:
+                logger.info(f"Final image URL for {show.name}: {show.image_url}")
+            else:
+                logger.warning(f"No final image URL available for {show.name}")
+                
+            return show
         except Exception as e:
             logger.error(f"Error searching for show: {str(e)}")
+            logger.error(traceback.format_exc())
             return None
 
     async def get_show_details(self, show_id: str) -> Optional[Dict[str, Any]]:

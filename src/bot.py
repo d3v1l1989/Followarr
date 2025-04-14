@@ -91,15 +91,18 @@ class FollowarrBot(commands.Bot):
         async def follow(interaction: discord.Interaction, show_name: str):
             """Follow a TV show to receive notifications."""
             try:
+                logger.info(f"User {interaction.user.name} requested to follow show: {show_name}")
                 # Search for the show using TVDB
                 show = await self.tvdb_client.search_show(show_name)
                 if not show:
+                    logger.warning(f"Could not find show: {show_name}")
                     await interaction.response.send_message(
                         f"❌ Could not find show: {show_name}",
                         ephemeral=True
                     )
                     return
 
+                logger.info(f"Found show: {show.name} (ID: {show.id})")
                 # Add the show to the user's follows
                 await self.db.add_follower(interaction.user.id, show.id, show.name)
                 
@@ -121,9 +124,12 @@ class FollowarrBot(commands.Bot):
                 
                 if show.image_url:
                     try:
+                        logger.info(f"Attempting to set thumbnail for {show.name} with URL: {show.image_url}")
                         embed.set_thumbnail(url=show.image_url)
+                        logger.info(f"Successfully set thumbnail for {show.name}")
                     except Exception as e:
-                        logger.error(f"Error setting thumbnail: {str(e)}")
+                        logger.error(f"Error setting thumbnail for {show.name}: {str(e)}")
+                        logger.error(traceback.format_exc())
                 
                 embed.set_footer(text="Data provided by TVDB")
                 
@@ -131,6 +137,7 @@ class FollowarrBot(commands.Bot):
                 
             except Exception as e:
                 logger.error(f"Error in follow command: {str(e)}")
+                logger.error(traceback.format_exc())
                 await interaction.response.send_message(
                     "❌ An error occurred while processing your request.",
                     ephemeral=True
@@ -171,14 +178,17 @@ class FollowarrBot(commands.Bot):
         async def unfollow(interaction: discord.Interaction, show_name: str):
             """Unfollow a TV show."""
             try:
+                logger.info(f"User {interaction.user.name} requested to unfollow show: {show_name}")
                 await interaction.response.defer()
                 
                 # Get user's followed shows
                 user_follows = await self.db.get_user_follows(str(interaction.user.id))
                 if not user_follows:
+                    logger.info(f"User {interaction.user.name} has no followed shows")
                     await interaction.followup.send("You're not following any shows!")
                     return
                 
+                logger.info(f"User {interaction.user.name} follows {len(user_follows)} shows")
                 # Find the show (case-insensitive)
                 show_to_unfollow = None
                 for show in user_follows:
@@ -187,18 +197,22 @@ class FollowarrBot(commands.Bot):
                         break
                 
                 if not show_to_unfollow:
+                    logger.warning(f"User {interaction.user.name} tried to unfollow {show_name} but wasn't following it")
                     await interaction.followup.send(f"You're not following {show_name}!")
                     return
                 
+                logger.info(f"Found show to unfollow: {show_to_unfollow['show_title']} (ID: {show_to_unfollow['show_id']})")
                 # Remove follower
                 success = await self.db.remove_follower(str(interaction.user.id), show_to_unfollow['show_id'])
                 if not success:
+                    logger.error(f"Failed to remove follower for show: {show_to_unfollow['show_title']}")
                     await interaction.followup.send("Failed to unfollow the show. Please try again later.")
                     return
                 
                 # Get show details for the embed
                 show_details = await self.tvdb_client.get_show_details(show_to_unfollow['show_id'])
                 if not show_details:
+                    logger.warning(f"Could not get show details for {show_to_unfollow['show_title']}")
                     await interaction.followup.send(f"Successfully unfollowed {show_to_unfollow['show_title']}!")
                     return
                 
@@ -220,19 +234,22 @@ class FollowarrBot(commands.Bot):
                     try:
                         # Ensure the URL is valid
                         if show_details['image'].startswith('http'):
+                            logger.info(f"Setting thumbnail for {show_to_unfollow['show_title']} with URL: {show_details['image']}")
                             embed.set_thumbnail(url=show_details['image'])
-                            logger.info(f"Set thumbnail for {show_to_unfollow['show_title']}: {show_details['image']}")
+                            logger.info(f"Successfully set thumbnail for {show_to_unfollow['show_title']}")
                         else:
                             logger.warning(f"Invalid image URL for {show_to_unfollow['show_title']}: {show_details['image']}")
                     except Exception as e:
-                        logger.error(f"Error setting thumbnail: {str(e)}")
+                        logger.error(f"Error setting thumbnail for {show_to_unfollow['show_title']}: {str(e)}")
+                        logger.error(traceback.format_exc())
                 
                 embed.set_footer(text="Data provided by TVDB")
                 
                 await interaction.followup.send(embed=embed)
                 
             except Exception as e:
-                logger.error(f"Error in unfollow command: {str(e)}", exc_info=True)
+                logger.error(f"Error in unfollow command: {str(e)}")
+                logger.error(traceback.format_exc())
                 await interaction.followup.send("An error occurred while processing your request. Please try again later.")
 
         @self.tree.command(name="calendar", description="View upcoming episodes for your followed shows")
