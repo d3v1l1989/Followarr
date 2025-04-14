@@ -278,7 +278,7 @@ class TVDBClient:
         """Get all episodes for a series using TVDB API v4."""
         try:
             # First check if series exists
-            series_response = await self._make_request('GET', f"series/{series_id}")
+            series_response = await self._make_request("GET", f"series/{series_id}")
             logger.info(f"Series response for {series_id}: {json.dumps(series_response, indent=2)}")
             
             if not series_response or "data" not in series_response:
@@ -299,7 +299,7 @@ class TVDBClient:
                 }
                 
                 # TVDB API v4 endpoint for episodes
-                response = await self._make_request('GET', f"series/{series_id}/episodes/default", params=params)
+                response = await self._make_request("GET", f"series/{series_id}/episodes/default", params=params)
                 logger.info(f"Episodes response for {series_id} page {page}: {json.dumps(response, indent=2)}")
                 
                 if not response:
