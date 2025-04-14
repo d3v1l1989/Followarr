@@ -35,7 +35,8 @@ class Database:
             'follows',
             self.metadata,
             Column('user_id', Integer, primary_key=True),
-            Column('show_title', String, primary_key=True)
+            Column('show_id', Integer, primary_key=True),
+            Column('show_title', String, nullable=False)
         )
         
         # Create async session maker
@@ -200,7 +201,7 @@ class Database:
                     select(self.follows)
                     .where(
                         (self.follows.c.user_id == user_id) &
-                        (self.follows.c.show_title.ilike(show_name))
+                        (self.follows.c.show_id == show_id)
                     )
                 )
                 existing = result.first()
