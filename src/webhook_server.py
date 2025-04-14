@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Form, File, UploadFile
 from fastapi.responses import JSONResponse
 import logging
 import json
@@ -23,22 +23,22 @@ class WebhookServer:
 
     def setup_routes(self):
         @self.app.post("/webhook/plex")
-        async def handle_plex_webhook(request: Request):
+        async def handle_plex_webhook(
+            payload: str = Form(...),
+            thumb: UploadFile = File(None)
+        ):
             try:
-                # Get the raw body
-                body = await request.body()
-                
                 # Parse the JSON payload
-                payload = json.loads(body)
+                payload_data = json.loads(payload)
                 
                 # Log the received webhook
-                event = payload.get('event')
+                event = payload_data.get('event')
                 logger.info(f"Received Plex webhook: {event}")
                 
                 # Only process library.new events
                 if event == 'library.new':
                     # Extract relevant information from the payload
-                    metadata = payload.get('Metadata', {})
+                    metadata = payload_data.get('Metadata', {})
                     
                     # Check if it's a TV show episode
                     if metadata.get('type') == 'episode':
@@ -59,6 +59,9 @@ class WebhookServer:
                 
                 return JSONResponse(content={"status": "success"})
                 
+            except json.JSONDecodeError as e:
+                logger.error(f"Error decoding JSON payload: {str(e)}")
+                raise HTTPException(status_code=400, detail="Invalid JSON payload")
             except Exception as e:
                 logger.error(f"Error processing webhook: {str(e)}")
                 raise HTTPException(status_code=500, detail=str(e))
