@@ -1,5 +1,5 @@
-from sqlalchemy import create_engine, Column, Integer, String, select
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import create_engine, Column, Integer, String, select, create_async_engine, MetaData, Table
+from sqlalchemy.orm import sessionmaker, declarative_base, AsyncSession
 import os
 from typing import List, Dict
 import logging
@@ -18,18 +18,26 @@ class Subscription(Base):
     show_name = Column(String, nullable=False)
 
 class Database:
-    def __init__(self):
-        # Use absolute path inside the container for clarity
-        database_url = os.getenv('DATABASE_URL', 'sqlite:////app/data/followarr.db')
-        logger.info(f"Using database URL: {database_url}")
-        
-        # Ensure the directory exists before creating the engine
-        db_dir = os.path.dirname(database_url.replace('sqlite:///', ''))
-        if db_dir:
-            os.makedirs(db_dir, exist_ok=True)
-            
-        self.engine = create_engine(database_url)
-        self.Session = sessionmaker(bind=self.engine)
+    def __init__(self, database_url: str):
+        """Initialize the database connection."""
+        self.database_url = database_url
+        self.engine = create_async_engine(database_url)
+        self.metadata = MetaData()
+        self.follows = Table(
+            'follows',
+            self.metadata,
+            Column('user_id', Integer, primary_key=True),
+            Column('show_title', String, primary_key=True)
+        )
+        self.async_session_maker = sessionmaker(
+            self.engine,
+            class_=AsyncSession,
+            expire_on_commit=False
+        )
+
+    async def async_session(self) -> AsyncSession:
+        """Get an async session."""
+        return self.async_session_maker()
 
     def init_db(self):
         # Explicitly touch the file path first to ensure it can be created/accessed
