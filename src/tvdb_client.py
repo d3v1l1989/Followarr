@@ -7,6 +7,8 @@ from datetime import datetime, timezone, timedelta
 import traceback
 import json
 from dotenv import load_dotenv
+import requests
+import time
 
 # Load env vars and setup logging
 load_dotenv()
@@ -78,72 +80,104 @@ class TVShow:
         return cls(**show_data)
 
 class TVDBClient:
-    def __init__(self, api_key: Optional[str] = None):
-        self.api_key = api_key or os.getenv('TVDB_API_KEY')
-        if not self.api_key:
-            raise ValueError("TVDB API key not provided and not found in environment variables")
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://api4.thetvdb.com/v4"
         self.token = None
-        self.base_url = 'https://api4.thetvdb.com/v4'  # TVDB API v4 base URL
-        self.headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json"
-        }
-
-    async def _get_token(self) -> str:
-        """Get authentication token from TVDB API."""
-        if self.token:
+        self.token_expiry = 0
+        
+    def _get_token(self) -> str:
+        """Get or refresh the TVDB API token."""
+        current_time = time.time()
+        if self.token and current_time < self.token_expiry:
             return self.token
-
+            
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(
-                    f"{self.base_url}/login",
-                    json={"apikey": self.api_key},
-                    headers=self.headers
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        if data and 'data' in data and 'token' in data['data']:
-                            self.token = data['data']['token']
-                            return self.token
-                    
-                    response_text = await response.text()
-                    logger.error(f"Failed to get TVDB token. Status: {response.status}, Response: {response_text}")
-                    raise Exception(f"Failed to get TVDB token: {response.status}")
+            response = requests.post(
+                f"{self.base_url}/login",
+                json={"apikey": self.api_key}
+            )
+            response.raise_for_status()
+            data = response.json()
+            self.token = data['data']['token']
+            # Set token expiry to 23 hours from now (TVDB tokens last 24 hours)
+            self.token_expiry = current_time + (23 * 60 * 60)
+            return self.token
         except Exception as e:
-            logger.error(f"Error in _get_token: {str(e)}")
+            logger.error(f"Error getting TVDB token: {str(e)}")
             raise
-
-    async def _make_request(self, method: str, endpoint: str, params: Optional[Dict] = None, json: Optional[Dict] = None) -> Dict:
-        """Make a request to the TVDB API with proper authentication."""
+            
+    def _make_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
+        """Make a request to the TVDB API with proper error handling."""
         try:
-            token = await self._get_token()
+            token = self._get_token()
             headers = {
-                **self.headers,
-                "Authorization": f"Bearer {token}"
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json"
             }
             
-            async with aiohttp.ClientSession() as session:
-                async with session.request(
-                    method,
-                    f"{self.base_url}/{endpoint}",
-                    headers=headers,
-                    params=params,
-                    json=json
-                ) as response:
-                    if response.status == 401:
-                        # Token expired, get a new one and retry
-                        self.token = None
-                        return await self._make_request(method, endpoint, params, json)
-                    
-                    response_data = await response.json()
-                    if response.status != 200:
-                        logger.error(f"TVDB API error: {response.status} - {response_data}")
-                    return response_data
-                    
+            response = requests.request(
+                method,
+                f"{self.base_url}/{endpoint}",
+                headers=headers,
+                **kwargs
+            )
+            
+            if response.status_code == 404:
+                logger.warning(f"TVDB API 404: {endpoint} not found")
+                return None
+                
+            response.raise_for_status()
+            return response.json()
+            
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                logger.warning(f"TVDB API 404: {endpoint} not found")
+                return None
+            logger.error(f"TVDB API error: {e.response.status_code} - {e.response.text}")
+            raise
         except Exception as e:
-            logger.error(f"Error making TVDB API request: {e}")
-            logger.error(traceback.format_exc())
+            logger.error(f"Error making TVDB request: {str(e)}")
+            raise
+            
+    def search_show(self, query: str) -> Optional[Dict[str, Any]]:
+        """Search for a TV show by name."""
+        try:
+            data = self._make_request("GET", f"search?query={query}")
+            if not data or not data.get('data'):
+                logger.warning(f"No results found for query: {query}")
+                return None
+                
+            # Return the first result
+            return data['data'][0]
+        except Exception as e:
+            logger.error(f"Error searching for show: {str(e)}")
+            return None
+            
+    def get_show_details(self, show_id: int) -> Optional[Dict[str, Any]]:
+        """Get detailed information about a TV show."""
+        try:
+            data = self._make_request("GET", f"series/{show_id}")
+            if not data or not data.get('data'):
+                logger.warning(f"No details found for show ID: {show_id}")
+                return None
+                
+            return data['data']
+        except Exception as e:
+            logger.error(f"Error getting show details: {str(e)}")
+            return None
+            
+    def get_episode_details(self, episode_id: int) -> Optional[Dict[str, Any]]:
+        """Get detailed information about an episode."""
+        try:
+            data = self._make_request("GET", f"episodes/{episode_id}")
+            if not data or not data.get('data'):
+                logger.warning(f"No details found for episode ID: {episode_id}")
+                return None
+                
+            return data['data']
+        except Exception as e:
+            logger.error(f"Error getting episode details: {str(e)}")
             return None
 
     async def search_series(self, query: str) -> List[Dict]:
@@ -185,26 +219,6 @@ class TVDBClient:
             
         except Exception as e:
             logger.error(f"Error searching for show: {e}")
-            return None
-
-    async def get_show_details(self, show_id: int) -> Optional[Dict]:
-        try:
-            response = await self._make_request('GET', f'series/{show_id}')
-            if response and 'data' in response:
-                return response['data']
-            return None
-        except Exception as e:
-            logger.error(f"Error getting show details: {e}")
-            return None
-
-    async def get_episode_details(self, episode_id: int) -> Optional[Dict]:
-        try:
-            response = await self._make_request('GET', f'episodes/{episode_id}/extended')
-            if response and 'data' in response:
-                return response['data']
-            return None
-        except Exception as e:
-            logger.error(f"Error getting episode details: {e}")
             return None
 
     async def get_series(self, series_id: str) -> Optional[Dict]:

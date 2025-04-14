@@ -506,7 +506,19 @@ class FollowarrBot(commands.Bot):
             episode = payload.get('media_index')
             title = payload.get('title')
             air_date = payload.get('originally_available_at')
-            summary = payload.get('summary')
+            summary = payload.get('summary', 'No summary available')
+            
+            # Try to get additional details from TVDB
+            try:
+                show = await self.tvdb_client.search_show(show_title)
+                if show:
+                    show_details = await self.tvdb_client.get_show_details(show['id'])
+                    if show_details:
+                        # Use TVDB's summary if available
+                        summary = show_details.get('overview', summary)
+            except Exception as e:
+                logger.warning(f"Could not get TVDB details for {show_title}: {str(e)}")
+                # Continue with Plex data if TVDB fails
             
             message = (
                 f"🎬 **New Episode Available!**\n\n"
@@ -530,6 +542,7 @@ class FollowarrBot(commands.Bot):
                     
         except Exception as e:
             logger.error(f"Error handling Plex notification: {str(e)}")
+            logger.error(traceback.format_exc())
 
 def main():
     try:

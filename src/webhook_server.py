@@ -8,6 +8,7 @@ import hashlib
 import base64
 import asyncio
 from datetime import datetime
+import traceback
 
 logging.basicConfig(
     level=logging.INFO,
@@ -23,55 +24,34 @@ class WebhookServer:
 
     def setup_routes(self):
         @self.app.post("/webhook/plex")
-        async def handle_plex_webhook(
-            payload: str = Form(...),
-            thumb: UploadFile = File(None)
-        ):
+        async def handle_plex_webhook(payload: str = Form(...), thumb: UploadFile = None):
+            """Handle incoming Plex webhook notifications."""
             try:
                 # Parse the JSON payload
-                payload_data = json.loads(payload)
-                
-                # Log the received webhook with more details
-                event = payload_data.get('event')
-                logger.info(f"Received Plex webhook: {event}")
-                logger.debug(f"Full payload: {payload_data}")
+                data = json.loads(payload)
+                logger.info(f"Received Plex webhook: {data.get('event')}")
                 
                 # Only process library.new events
-                if event == 'library.new':
-                    # Extract relevant information from the payload
-                    metadata = payload_data.get('Metadata', {})
-                    
-                    # Check if it's a TV show episode
-                    if metadata.get('type') == 'episode':
-                        logger.info(f"Processing new episode: {metadata.get('grandparentTitle')} S{metadata.get('parentIndex')}E{metadata.get('index')}")
-                        
-                        # Transform the payload to match our notification format
-                        notification_payload = {
-                            'event': 'media.added',
-                            'media_type': 'episode',
-                            'grandparent_title': metadata.get('grandparentTitle'),
-                            'parent_media_index': metadata.get('parentIndex'),
-                            'media_index': metadata.get('index'),
-                            'title': metadata.get('title'),
-                            'originally_available_at': metadata.get('originallyAvailableAt'),
-                            'summary': metadata.get('summary')
-                        }
-                        
-                        # Call the callback with the transformed payload
-                        await self.callback(notification_payload)
-                    else:
-                        logger.info(f"Ignoring non-episode content: {metadata.get('type')}")
-                else:
-                    logger.info(f"Ignoring non-library.new event: {event}")
+                if data.get('event') != 'library.new':
+                    logger.info(f"Ignoring non-library.new event: {data.get('event')}")
+                    return {"status": "ignored", "reason": "not_library_new"}
                 
-                return JSONResponse(content={"status": "success"})
+                # Check if it's a TV show episode
+                if data.get('Metadata', {}).get('type') != 'episode':
+                    logger.info(f"Ignoring non-episode content: {data.get('Metadata', {}).get('type')}")
+                    return {"status": "ignored", "reason": "not_episode"}
+                
+                # Process the notification
+                await self.callback(data)
+                return {"status": "success"}
                 
             except json.JSONDecodeError as e:
                 logger.error(f"Error decoding JSON payload: {str(e)}")
-                raise HTTPException(status_code=400, detail="Invalid JSON payload")
+                return {"status": "error", "message": "Invalid JSON payload"}
             except Exception as e:
                 logger.error(f"Error processing webhook: {str(e)}")
-                raise HTTPException(status_code=500, detail=str(e))
+                logger.error(traceback.format_exc())
+                return {"status": "error", "message": str(e)}
         
         @self.app.get("/health")
         async def health_check():
