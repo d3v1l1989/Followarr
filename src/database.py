@@ -20,7 +20,10 @@ class Database:
     def __init__(self, database_url: str):
         """Initialize the database connection."""
         self.database_url = database_url
-        self.engine = create_async_engine(database_url)
+        self.engine = create_async_engine(
+            database_url,
+            connect_args={"check_same_thread": False}
+        )
         self.metadata = MetaData()
         
         # Define the follows table
@@ -41,6 +44,10 @@ class Database:
     async def init_db(self):
         """Initialize the database tables."""
         try:
+            # Ensure the database directory exists
+            db_path = Path(self.database_url.replace('sqlite+aiosqlite:///', ''))
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            
             async with self.engine.begin() as conn:
                 await conn.run_sync(self.metadata.create_all)
             logger.info("Database tables created successfully")
