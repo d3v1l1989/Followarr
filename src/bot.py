@@ -195,206 +195,65 @@ class FollowarrBot(commands.Bot):
                 logger.error(f"Error in unfollow command: {str(e)}", exc_info=True)
                 await interaction.followup.send("An error occurred while processing your request. Please try again later.")
 
-        @self.tree.command(name="calendar", description="Shows upcoming episodes for all shows")
-        async def calendar(interaction: discord.Interaction):
-            """Shows upcoming episodes for all shows"""
+        @self.tree.command(name="calendar", description="View upcoming episodes for your followed shows")
+        async def calendar(self, interaction: discord.Interaction):
+            """View upcoming episodes for your followed shows."""
             try:
                 await interaction.response.defer()
                 
                 # Get user's followed shows
-                shows = await self.db.get_user_follows(interaction.user.id)
+                shows = await self.db.get_user_subscriptions(str(interaction.user.id))
                 if not shows:
-                    await interaction.followup.send("You're not following any shows! Use `/follow` to add some.")
+                    await interaction.followup.send("You're not following any shows!")
                     return
-
-                # Get upcoming episodes for all shows
-                all_episodes = []
-                for show_name in shows:
-                    try:
-                        show = await self.tvdb_client.search_show(show_name)
-                        if not show:
-                            logger.warning(f"Could not find show in TVDB: {show_name}")
-                            continue
-                            
-                        episodes = await self.tvdb_client.get_upcoming_episodes(show['id'])
-                        for episode in episodes:
-                            episode['show_name'] = show_name
-                            all_episodes.append(episode)
-                    except Exception as e:
-                        logger.error(f"Error getting episodes for {show_name}: {str(e)}")
-                        continue
-
-                if not all_episodes:
-                    await interaction.followup.send("No upcoming episodes found for your shows.")
-                    return
-
-                # Sort episodes by air date
-                all_episodes.sort(key=lambda x: x.get('aired', ''))
-
-                # Group episodes by month
-                monthly_episodes = {}
-                for episode in all_episodes:
-                    air_date_str = episode.get('aired')
-                    if not air_date_str:
-                        continue
-                        
-                    try:
-                        if 'T' in air_date_str:
-                            air_date = datetime.fromisoformat(air_date_str.replace('Z', '+00:00'))
-                        else:
-                            air_date = datetime.strptime(air_date_str, "%Y-%m-%d")
-                            air_date = air_date.replace(tzinfo=timezone.utc)
-                            
-                        # Skip episodes more than 6 months in the future
-                        if (air_date - datetime.now(timezone.utc)).days > 180:
-                            continue
-                            
-                        month_key = air_date.strftime("%B %Y")
-                        if month_key not in monthly_episodes:
-                            monthly_episodes[month_key] = []
-                        monthly_episodes[month_key].append(episode)
-                    except (ValueError, TypeError) as e:
-                        logger.error(f"Error processing episode date: {e}")
-                        continue
-
-                # Create embeds for each month
-                embeds = []
                 
-                # Add summary embed
-                summary_embed = discord.Embed(
-                    title="Upcoming Episodes Summary",
+                # Create calendar embed
+                embed = discord.Embed(
+                    title="📅 Upcoming Episodes",
+                    description="Here are the upcoming episodes for your followed shows:",
                     color=discord.Color.blue()
                 )
                 
-                if all_episodes:
-                    next_episode = all_episodes[0]
-                    next_air_date_str = next_episode.get('aired')
-                    if next_air_date_str:
-                        try:
-                            if 'T' in next_air_date_str:
-                                next_air_date = datetime.fromisoformat(next_air_date_str.replace('Z', '+00:00'))
-                            else:
-                                next_air_date = datetime.strptime(next_air_date_str, "%Y-%m-%d")
-                                next_air_date = next_air_date.replace(tzinfo=timezone.utc)
-                                
-                            # Try different field names for season and episode
-                            season = next_episode.get('seasonNumber', '?')
-                            episode = next_episode.get('number', '?')
-                            episode_name = next_episode.get('name', 'TBA')
+                # Get upcoming episodes for each show
+                for show in shows:
+                    try:
+                        show_details = await self.tvdb_client.get_show_details(show['show_id'])
+                        if not show_details:
+                            continue
                             
-                            next_ep_text = f"{next_episode['show_name']} S{season}E{episode}"
-                            if episode_name and episode_name.lower() != 'tba':
-                                next_ep_text += f" - {episode_name}"
+                        # Get next episode
+                        next_episode = show_details.get('nextAiredEpisode')
+                        if not next_episode:
+                            continue
                             
-                            # Get show details to get the poster image
-                            show_details = await self.tvdb_client.get_show_details(next_episode['seriesId'])
-                            if show_details and show_details.get('image'):
-                                summary_embed.set_thumbnail(url=show_details['image'])
-                            
-                            # Build the episode description
-                            episode_description = f"{next_ep_text}\n{next_air_date.strftime('%B %d, %Y at %I:%M %p %Z')}"
-                            
-                            # Add episode overview if available
-                            episode_overview = next_episode.get('overview')
-                            if episode_overview:
-                                episode_description += f"\n\n{episode_overview}"
-                            
-                            summary_embed.add_field(
-                                name="Next Episode",
-                                value=episode_description,
-                                inline=False
-                            )
-                        except (ValueError, TypeError) as e:
-                            logger.error(f"Error processing next episode date: {e}")
-                
-                summary_embed.add_field(
-                    name="Total Episodes",
-                    value=f"{len(all_episodes)} episodes across {len(monthly_episodes)} months",
-                    inline=False
-                )
-                embeds.append(summary_embed)
-
-                # Create embeds for each month
-                for month, episodes in monthly_episodes.items():
-                    # Sort episodes by date
-                    episodes.sort(key=lambda x: x.get('aired', ''))
-                    
-                    # Split episodes into chunks of 25 (Discord's field limit)
-                    episode_chunks = [episodes[i:i + 25] for i in range(0, len(episodes), 25)]
-                    
-                    for chunk_index, episode_chunk in enumerate(episode_chunks):
-                        embed = discord.Embed(
-                            title=f"{month}" + (f" (Part {chunk_index + 1})" if len(episode_chunks) > 1 else ""),
-                            color=discord.Color.blue()
+                        # Format episode info
+                        episode_info = f"**S{next_episode['seasonNumber']}E{next_episode['episodeNumber']}** - {next_episode['episodeName']}\n"
+                        episode_info += f"📅 {next_episode['firstAired']}\n"
+                        
+                        if next_episode.get('overview'):
+                            overview = next_episode['overview'][:100] + '...' if len(next_episode['overview']) > 100 else next_episode['overview']
+                            episode_info += f"📝 {overview}\n"
+                        
+                        # Add to embed
+                        embed.add_field(
+                            name=show['show_title'],
+                            value=episode_info,
+                            inline=False
                         )
                         
-                        current_date = None
-                        current_episodes = []
-                        
-                        for episode in episode_chunk:
-                            air_date_str = episode.get('aired')
-                            if not air_date_str:
-                                continue
-                                
-                            try:
-                                if 'T' in air_date_str:
-                                    air_date = datetime.fromisoformat(air_date_str.replace('Z', '+00:00'))
-                                else:
-                                    air_date = datetime.strptime(air_date_str, "%Y-%m-%d")
-                                    air_date = air_date.replace(tzinfo=timezone.utc)
-                                    
-                                formatted_date = air_date.strftime("%A, %B %d")
-                                
-                                if current_date != formatted_date:
-                                    if current_episodes:
-                                        # Add previous day's episodes as a single field
-                                        embed.add_field(
-                                            name=current_date,
-                                            value="\n".join(current_episodes),
-                                            inline=False
-                                        )
-                                        current_episodes = []
-                                    
-                                    current_date = formatted_date
-                                
-                                season = episode.get('seasonNumber', '?')
-                                episode_num = episode.get('number', '?')
-                                episode_name = episode.get('name', '')
-                                
-                                episode_text = f"• {episode['show_name']} S{season}E{episode_num}"
-                                if episode_name and episode_name.lower() != 'tba':
-                                    episode_text += f" - {episode_name}"
-                                
-                                current_episodes.append(episode_text)
-                                
-                            except (ValueError, TypeError) as e:
-                                logger.error(f"Error processing episode date: {e}")
-                                continue
-                        
-                        # Add the last day's episodes
-                        if current_episodes:
-                            embed.add_field(
-                                name=current_date,
-                                value="\n".join(current_episodes),
-                                inline=False
-                            )
-                        
-                        if not embed.fields:
-                            embed.add_field(
-                                name="No Episodes",
-                                value="No upcoming episodes this month",
-                                inline=False
-                            )
-                        
-                        embeds.append(embed)
-
-                # Send all embeds
-                await interaction.followup.send(embeds=embeds)
-
+                    except Exception as e:
+                        logger.error(f"Error getting episodes for {show['show_title']}: {str(e)}")
+                        continue
+                
+                if not embed.fields:
+                    await interaction.followup.send("No upcoming episodes found for your followed shows.")
+                    return
+                
+                await interaction.followup.send(embed=embed)
+                
             except Exception as e:
-                logger.error(f"Error in calendar command: {str(e)}")
-                logger.error(traceback.format_exc())
-                await interaction.followup.send("An error occurred while fetching the calendar. Please try again later.")
+                logger.error(f"Error in calendar command: {str(e)}", exc_info=True)
+                await interaction.followup.send("An error occurred while processing your request. Please try again later.")
 
     async def setup_hook(self):
         """Setup hook that runs after the bot is ready."""
