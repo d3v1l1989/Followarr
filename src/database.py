@@ -175,7 +175,8 @@ class Database:
     async def get_show_followers(self, show_title: str) -> List[int]:
         """Get all users following a specific show."""
         try:
-            async with self.async_session() as session:
+            session = await self.async_session()
+            async with session as session:
                 result = await session.execute(
                     select(self.follows.c.user_id)
                     .where(self.follows.c.show_title == show_title)
@@ -189,7 +190,8 @@ class Database:
     async def add_follower(self, user_id: int, show_title: str) -> bool:
         """Add a user as a follower of a show."""
         try:
-            async with self.async_session() as session:
+            session = await self.async_session()
+            async with session as session:
                 stmt = self.follows.insert().values(
                     user_id=user_id,
                     show_title=show_title
@@ -204,7 +206,8 @@ class Database:
     async def remove_follower(self, user_id: int, show_title: str) -> bool:
         """Remove a user as a follower of a show."""
         try:
-            async with self.async_session() as session:
+            session = await self.async_session()
+            async with session as session:
                 stmt = self.follows.delete().where(
                     (self.follows.c.user_id == user_id) &
                     (self.follows.c.show_title == show_title)
@@ -219,7 +222,8 @@ class Database:
     async def get_user_follows(self, user_id: int) -> List[str]:
         """Get all shows a user is following."""
         try:
-            async with self.async_session() as session:
+            session = await self.async_session()
+            async with session as session:
                 result = await session.execute(
                     select(self.follows.c.show_title)
                     .where(self.follows.c.user_id == user_id)
