@@ -35,8 +35,8 @@ class WebhookServer:
                 event = payload.get('event')
                 logger.info(f"Received Plex webhook: {event}")
                 
-                # Check if this is a library event
-                if event in ['library.new', 'library.on.deck']:
+                # Only process library.new events
+                if event == 'library.new':
                     # Extract relevant information from the payload
                     metadata = payload.get('Metadata', {})
                     

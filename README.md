@@ -184,22 +184,15 @@ This is the recommended method to install Followarr.
       - Different machines: `http://<followarr_ip>:3000/webhook/plex`
         (replace `<followarr_ip>` with your Followarr server's IP)
 
-4.  **Configure Events:**
-    - Under "Events", select:
-      - `library.new` (This event is triggered when new content is added to your library)
-      - Optionally, you can also select `library.on.deck` if you want notifications when items appear in your On Deck
-
-5.  **Save and Test:**
+4.  **Save and Test:**
     - Click "Save Changes" to create the webhook
     - Test by adding a new TV show episode to your Plex library
     - You should receive a Discord notification if everything is set up correctly
 
 **Important Notes:**
 - Plex webhooks require an active Plex Pass subscription
+- Followarr automatically filters webhook events and only processes `library.new` events for new episodes
 - Ensure your Followarr instance is accessible from your Plex server
-- If using Docker, both containers must be on the same network
-- The webhook URL must be reachable from your Plex server
-- If using a reverse proxy or special network setup, adjust the URL accordingly
 
 #### Docker Network (If Plex is also in Docker)
 
