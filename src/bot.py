@@ -209,6 +209,12 @@ class FollowarrBot(commands.Bot):
                     await interaction.followup.send("Failed to unfollow the show. Please try again later.")
                     return
                 
+                # Check if this is a movie ID (starts with 'movie-')
+                if isinstance(show_to_unfollow['show_id'], str) and show_to_unfollow['show_id'].startswith('movie-'):
+                    # For movies, just send a simple confirmation
+                    await interaction.followup.send(f"Successfully unfollowed {show_to_unfollow['show_title']}!")
+                    return
+                
                 # Get show details for the embed
                 show_details = await self.tvdb_client.get_show_details(show_to_unfollow['show_id'])
                 if not show_details:
