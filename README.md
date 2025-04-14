@@ -177,6 +177,44 @@ This is the recommended method to install Followarr.
     *   `Media Added`
 5.  Save the webhook configuration.
 
+**Detailed Webhook Setup Guide:**
+
+1. **Access Plex Web Interface:**
+   - Open your Plex Media Server web interface (typically at `http://your-plex-server:32400/web`)
+   - Log in with your Plex account
+
+2. **Navigate to Settings:**
+   - Click the wrench icon (⚙️) in the top right corner
+   - Select "Settings" from the dropdown menu
+
+3. **Enable Webhooks (if needed):**
+   - Go to "Server" → "General"
+   - Ensure "Enable Webhooks" is checked
+   - If you don't see Webhooks in the sidebar, you'll need to enable this first
+
+4. **Add Webhook:**
+   - In the left sidebar, click on "Webhooks" under "Settings"
+   - Click the "Add Webhook" button
+   - Enter your Followarr webhook URL:
+     - Same Docker network: `http://followarr:3000/webhook/plex`
+     - Different machines: `http://<followarr_ip>:3000/webhook/plex`
+       (replace `<followarr_ip>` with your Followarr server's IP)
+
+5. **Configure Events:**
+   - Under "Events", select:
+     - `Media Added` (for new episode notifications)
+
+6. **Save and Test:**
+   - Click "Save Changes" to create the webhook
+   - Test by adding a new TV show episode to your Plex library
+   - You should receive a Discord notification if everything is set up correctly
+
+**Important Notes:**
+- Ensure your Followarr instance is accessible from your Plex server
+- If using Docker, both containers must be on the same network
+- The webhook URL must be reachable from your Plex server
+- If using a reverse proxy or special network setup, adjust the URL accordingly
+
 #### Docker Network (If Plex is also in Docker)
 
 For Plex to reach Followarr using the `http://followarr:3000` URL, both containers must be on the same custom Docker network. Ensure your Plex `docker-compose.yml` connects it to the `followarr-net` network defined in Followarr's `docker-compose.yml`.
