@@ -8,7 +8,7 @@ from discord.ext import commands
 from dotenv import load_dotenv
 from src.database import Database
 from src.tvdb_client import TVDBClient
-from src.tautulli_client import TautulliClient
+from src.plex_client import PlexClient
 from src.webhook_server import WebhookServer
 import traceback
 from discord.app_commands import CommandTree
@@ -61,15 +61,21 @@ class FollowarrBot(commands.Bot):
         
         # Initialize API clients and database
         self.tvdb_client = TVDBClient(os.getenv('TVDB_API_KEY'))
-        self.tautulli_client = TautulliClient(
-            os.getenv('TAUTULLI_URL'),
-            os.getenv('TAUTULLI_API_KEY')
+        self.plex_client = PlexClient(
+            os.getenv('PLEX_URL'),
+            os.getenv('PLEX_TOKEN')
         )
         self.db = Database()
-        self.webhook_server = WebhookServer(self.handle_episode_notification)
+        self.webhook_server = WebhookServer(
+            self.handle_episode_notification,
+            os.getenv('PLEX_TOKEN')
+        )
 
         # Setup slash commands
         self.setup_commands()
+
+        # Start the webhook server
+        self.webhook_server_task = None
 
     def setup_commands(self):
         @self.tree.command(name="follow", description="Follow a TV show")
@@ -413,26 +419,26 @@ class FollowarrBot(commands.Bot):
                 await interaction.followup.send("An error occurred while fetching the calendar. Please try again later.")
 
     async def setup_hook(self):
-        logger.info("Setting up bot...")
-        
-        # Initialize DB (moved to on_ready)
-        # try:
-        #     self.db.init_db()
-        #     logger.info("Database initialized successfully.")
-        # except Exception as e:
-        #     self.logger.error(f"Error during setup: {e}", exc_info=True)
-        #     raise  # Re-raise the exception to potentially stop the bot if DB fails
-
-        # Start webhook server
-        logger.info("Starting webhook server...")
-        webhook_port = int(os.getenv('WEBHOOK_SERVER_PORT', 3000))
-        config = uvicorn.Config(self.webhook_server.app, host="0.0.0.0", port=webhook_port, log_level="info")
+        """Setup hook that runs after the bot is ready."""
+        # Start the webhook server
+        config = uvicorn.Config(
+            self.webhook_server.app,
+            host="0.0.0.0",
+            port=int(os.getenv('WEBHOOK_SERVER_PORT', 3000)),
+            log_level="info"
+        )
         server = uvicorn.Server(config)
-        # Run the server in the background
-        asyncio.create_task(server.serve())
-        logger.info(f"Webhook server started on port {webhook_port}")
-        
-        logger.info("Bot setup complete.")
+        self.webhook_server_task = asyncio.create_task(server.serve())
+
+    async def close(self):
+        """Cleanup when the bot is shutting down."""
+        if self.webhook_server_task:
+            self.webhook_server_task.cancel()
+            try:
+                await self.webhook_server_task
+            except asyncio.CancelledError:
+                pass
+        await super().close()
 
     async def on_ready(self):
         logger.info(f'Logged in as {self.user.name} (ID: {self.user.id})')
@@ -473,7 +479,7 @@ class FollowarrBot(commands.Bot):
         logger.error(traceback.format_exc())
 
     async def handle_episode_notification(self, payload: Dict):
-        """Handle episode notification from Tautulli"""
+        """Handle episode notification from Plex"""
         try:
             # Extract episode information from payload
             show_name = payload.get('grandparent_title')

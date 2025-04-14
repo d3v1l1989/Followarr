@@ -8,7 +8,7 @@
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 ![Docker](https://img.shields.io/badge/Docker-Available_on_GHCR-2496ED.svg)
 
-A Discord bot that integrates with Tautulli to notify users about new episodes of their favorite TV shows.  
+A Discord bot that integrates with Plex to notify users about new episodes of their favorite TV shows.  
 Get notifications when new episodes are added to your media server!
 
 </div>
@@ -40,7 +40,7 @@ This section guides you through setting up Followarr.
 
 - Discord Bot Token (See setup below)
 - TVDB API Key ([Get one here](https://thetvdb.com/subscribe))
-- Tautulli instance with API access enabled
+- Plex Media Server with webhooks enabled
 - Docker and Docker Compose installed
 
 ### 🤖 Discord Bot Setup
@@ -133,9 +133,9 @@ This is the recommended method to install Followarr.
     # TVDB API Configuration
     TVDB_API_KEY=YourTVDBApiKey
 
-    # Tautulli Configuration
-    TAUTULLI_URL=http://your-tautulli-server:8181 # URL to access Tautulli
-    TAUTULLI_API_KEY=YourTautulliApiKey
+    # Plex Configuration
+    PLEX_URL=http://your-plex-server:32400 # URL to access Plex
+    PLEX_TOKEN=YourPlexToken # Your Plex token (get this from your Plex account)
 
     # Database Configuration (uses SQLite by default)
     DATABASE_URL=sqlite:///data/followarr.db
@@ -164,48 +164,28 @@ This is the recommended method to install Followarr.
 ### ⚙️ Post-Installation Configuration
 
 *   **Database & Logs:** Followarr uses Docker named volumes (`followarr-data` and `followarr-logs`) by default to store the database and logs. These are managed by Docker and persist even if the container is removed.
-*   **Tautulli Webhook:** Configure Tautulli to send webhook notifications to Followarr for new episodes (see details below).
+*   **Plex Webhook:** Configure Plex to send webhook notifications to Followarr for new episodes (see details below).
 
-#### Tautulli Webhook Setup
+#### Plex Webhook Setup
 
-1.  In Tautulli **Settings** → **Notification Agents**.
-2.  Click **Add a new notification agent** → **Webhook**.
+1.  In Plex Media Server, go to **Settings** → **Webhooks**.
+2.  Click **Add Webhook**.
 3.  Configure the **Webhook URL**:
-    *   If Followarr and Tautulli are on the **same Docker bridge network**: `http://followarr:3000/webhook/tautulli` (uses Docker DNS)
-    *   If Followarr is on the host or different network: `http://<followarr_host_ip>:3000/webhook/tautulli` (replace `<followarr_host_ip>` with the IP address of the machine running Followarr).
-4.  Under **Triggers**, select `Recently Added`.
-5.  Under **Conditions**, you might want to add a condition like `Media Type is episode` to only trigger for TV shows.
-6.  In the **Data** section under **Recently Added**:
-    *   For JSON Headers:
-        ```json
-        {
-            "Content-Type": "application/json"
-        }
-        ```
-    *   For JSON Data:
-        ```json
-        {
-            "event": "media.added",
-            "media_type": "episode",
-            "grandparent_title": "{show_name}",
-            "parent_media_index": "{season_num}",
-            "media_index": "{episode_num}",
-            "title": "{episode_name}",
-            "originally_available_at": "{air_date}",
-            "summary": "{summary}"
-        }
-        ```
-7.  Save the notification agent.
+    *   If Followarr and Plex are on the **same Docker bridge network**: `http://followarr:3000/webhook/plex` (uses Docker DNS)
+    *   If Followarr is on the host or different network: `http://<followarr_host_ip>:3000/webhook/plex` (replace `<followarr_host_ip>` with the IP address of the machine running Followarr).
+4.  Under **Events**, select:
+    *   `Media Added`
+5.  Save the webhook configuration.
 
-#### Docker Network (If Tautulli is also in Docker)
+#### Docker Network (If Plex is also in Docker)
 
-For Tautulli to reach Followarr using the `http://followarr:3000` URL, both containers must be on the same custom Docker network. Ensure your Tautulli `docker-compose.yml` connects it to the `followarr-net` network defined in Followarr's `docker-compose.yml`.
+For Plex to reach Followarr using the `http://followarr:3000` URL, both containers must be on the same custom Docker network. Ensure your Plex `docker-compose.yml` connects it to the `followarr-net` network defined in Followarr's `docker-compose.yml`.
 
-Example snippet for Tautulli's `docker-compose.yml`:
+Example snippet for Plex's `docker-compose.yml`:
 ```yaml
 services:
-  tautulli:
-    # ... other Tautulli config ...
+  plex:
+    # ... other Plex config ...
     networks:
       - followarr-net # Add this line
       # - other_networks...
@@ -215,7 +195,7 @@ networks:
     external: true # Connect to the existing network created by Followarr
   # other_networks: ...
 ```
-*Remember to restart Tautulli after modifying its compose file.* 
+*Remember to restart Plex after modifying its compose file.* 
 
 *   **Restart Followarr (e.g., after `.env` changes):**
     ```bash
@@ -235,8 +215,8 @@ The bot requires several environment variables to be set in the `.env` file:
 | `DISCORD_BOT_TOKEN`   | Your Discord bot token                            | Yes      | -                                |
 | `DISCORD_CHANNEL_ID`  | Discord channel ID for potential future updates   | Yes      | -                                |
 | `TVDB_API_KEY`        | Your TVDB API key                                 | Yes      | -                                |
-| `TAUTULLI_API_KEY`    | Your Tautulli API key                             | Yes      | -                                |
-| `TAUTULLI_URL`        | URL of your Tautulli instance                     | Yes      | -                                |
+| `PLEX_TOKEN`          | Your Plex token                                   | Yes      | -                                |
+| `PLEX_URL`            | URL of your Plex server                           | Yes      | -                                |
 | `DATABASE_URL`        | SQLite database URL                               | No       | `sqlite:///data/followarr.db`  |
 | `WEBHOOK_SERVER_PORT` | Internal port for the webhook server              | No       | `3000`                           |
 | `LOG_LEVEL`           | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) | No | `INFO` |

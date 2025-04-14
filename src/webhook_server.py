@@ -3,6 +3,9 @@ from fastapi.responses import JSONResponse
 import logging
 import json
 from typing import Callable, Dict
+import hmac
+import hashlib
+import base64
 
 logging.basicConfig(
     level=logging.INFO,
@@ -11,9 +14,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class WebhookServer:
-    def __init__(self, notification_handler: Callable):
+    def __init__(self, notification_handler: Callable, plex_token: str):
         self.app = FastAPI()
         self.notification_handler = notification_handler
+        self.plex_token = plex_token
 
         @self.app.get("/health")
         async def health_check():
@@ -23,12 +27,22 @@ class WebhookServer:
             """
             return {"status": "healthy"}
 
-        @self.app.post("/webhook/tautulli")
-        async def tautulli_webhook(request: Request):
+        @self.app.post("/webhook/plex")
+        async def plex_webhook(request: Request):
             try:
                 # Log request headers for debugging
                 logger.info(f"Received webhook request from {request.client.host}")
                 logger.debug(f"Request headers: {dict(request.headers)}")
+                
+                # Verify the webhook signature if present
+                signature = request.headers.get('X-Plex-Signature')
+                if signature:
+                    if not self._verify_plex_signature(request, signature):
+                        logger.warning("Invalid Plex webhook signature")
+                        return JSONResponse(
+                            status_code=401,
+                            content={"status": "error", "message": "Invalid signature"}
+                        )
                 
                 # Log the raw request body for debugging
                 raw_body = await request.body()
@@ -38,8 +52,7 @@ class WebhookServer:
                         status_code=400,
                         content={
                             "status": "error",
-                            "message": "Empty request body",
-                            "detail": "Tautulli webhook sent an empty request. Please check your Tautulli webhook configuration."
+                            "message": "Empty request body"
                         }
                     )
                 
@@ -62,7 +75,7 @@ class WebhookServer:
                     )
                 
                 # Validate the webhook payload
-                if not self._validate_webhook_payload(payload):
+                if not self._validate_plex_payload(payload):
                     logger.warning(f"Invalid webhook payload: {json.dumps(payload, indent=2)}")
                     return JSONResponse(
                         status_code=400,
@@ -74,9 +87,9 @@ class WebhookServer:
                     )
                 
                 # Process the webhook
-                await self._handle_tautulli_webhook(payload)
+                await self._handle_plex_webhook(payload)
                 
-                logger.info(f"Successfully processed Tautulli webhook for {payload.get('grandparent_title', 'Unknown')}")
+                logger.info("Successfully processed Plex webhook")
                 return JSONResponse(content={"status": "success"})
                 
             except Exception as e:
@@ -90,12 +103,42 @@ class WebhookServer:
                     }
                 )
 
-    def _validate_webhook_payload(self, payload: Dict) -> bool:
+    def _verify_plex_signature(self, request: Request, signature: str) -> bool:
         """
-        Validate that the webhook payload contains all required fields.
+        Verify the Plex webhook signature.
+        
+        Args:
+            request: The FastAPI request object
+            signature: The signature from the X-Plex-Signature header
+            
+        Returns:
+            bool: True if signature is valid, False otherwise
         """
-        # Basic required fields
-        required_fields = ['event', 'media_type']
+        try:
+            # Get the raw body
+            body = request.body()
+            
+            # Create HMAC with the Plex token
+            hmac_obj = hmac.new(
+                self.plex_token.encode(),
+                body,
+                hashlib.sha1
+            )
+            
+            # Compare the signatures
+            expected_signature = base64.b64encode(hmac_obj.digest()).decode()
+            return hmac.compare_digest(signature, expected_signature)
+            
+        except Exception as e:
+            logger.error(f"Error verifying Plex signature: {str(e)}")
+            return False
+
+    def _validate_plex_payload(self, payload: Dict) -> bool:
+        """
+        Validate that the Plex webhook payload contains all required fields.
+        """
+        # Basic required fields for Plex webhooks
+        required_fields = ['event', 'Metadata']
         
         # Check if all required fields are present
         missing_fields = [field for field in required_fields if field not in payload]
@@ -103,98 +146,71 @@ class WebhookServer:
             logger.warning(f"Missing required fields in webhook payload: {missing_fields}")
             return False
 
-        # For media.added events, check additional required fields based on media type
+        # For media.added events, check additional required fields
         if payload.get('event') == 'media.added':
-            if payload.get('media_type') == 'episode':
+            metadata = payload.get('Metadata', {})
+            if metadata.get('type') == 'episode':
                 # TV show episode specific fields
                 episode_fields = [
-                    'grandparent_title',  # Show name
-                    'parent_media_index', # Season number
-                    'media_index',       # Episode number
+                    'grandparentTitle',  # Show name
+                    'parentIndex',       # Season number
+                    'index',            # Episode number
                     'title',            # Episode name
-                    'originally_available_at'  # Air date
+                    'originallyAvailableAt'  # Air date
                 ]
-                missing_fields = [field for field in episode_fields if field not in payload]
+                missing_fields = [field for field in episode_fields if field not in metadata]
                 if missing_fields:
                     logger.warning(f"Missing required fields for episode: {missing_fields}")
                     return False
-            elif payload.get('media_type') == 'movie':
+            elif metadata.get('type') == 'movie':
                 # Movie specific fields
                 movie_fields = [
                     'title',            # Movie name
-                    'originally_available_at'  # Release date
+                    'originallyAvailableAt'  # Release date
                 ]
-                missing_fields = [field for field in movie_fields if field not in payload]
+                missing_fields = [field for field in movie_fields if field not in metadata]
                 if missing_fields:
                     logger.warning(f"Missing required fields for movie: {missing_fields}")
                     return False
             else:
-                logger.warning(f"Unsupported media type: {payload.get('media_type')}")
+                logger.warning(f"Unsupported media type: {metadata.get('type')}")
                 return False
 
         return True
 
-    async def _handle_tautulli_webhook(self, payload: Dict):
+    async def _handle_plex_webhook(self, payload: Dict):
         try:
             # Check if this is a recently added media item
             if payload.get('event') == 'media.added':
-                media_type = payload.get('media_type')
-                logger.info(f"Processing media.added event for {media_type}: {payload.get('title', 'Unknown')}")
+                metadata = payload.get('Metadata', {})
+                media_type = metadata.get('type')
+                logger.info(f"Processing media.added event for {media_type}: {metadata.get('title', 'Unknown')}")
                 
                 # Validate media data
-                if not self._validate_webhook_payload(payload):
+                if not self._validate_plex_payload(payload):
                     logger.warning("Invalid media data in webhook payload")
                     return
                 
                 # Only process TV show episodes
                 if media_type == 'episode':
-                    await self.notification_handler(payload)
+                    # Transform Plex payload to match our notification format
+                    notification_payload = {
+                        'event': 'media.added',
+                        'media_type': 'episode',
+                        'grandparent_title': metadata.get('grandparentTitle'),
+                        'parent_media_index': metadata.get('parentIndex'),
+                        'media_index': metadata.get('index'),
+                        'title': metadata.get('title'),
+                        'originally_available_at': metadata.get('originallyAvailableAt'),
+                        'summary': metadata.get('summary', '')
+                    }
+                    await self.notification_handler(notification_payload)
                 else:
                     logger.info(f"Ignoring {media_type} notification")
             else:
-                logger.debug(f"Ignoring event: {payload.get('event')} for media type: {payload.get('media_type')}")
+                logger.debug(f"Ignoring event: {payload.get('event')}")
 
         except Exception as e:
-            logger.error(f"Error handling Tautulli webhook: {str(e)}", exc_info=True)
+            logger.error(f"Error handling Plex webhook: {str(e)}", exc_info=True)
             # Don't raise the exception, just log it
-            # This prevents the webhook from failing and Tautulli from retrying
-
-    def _validate_episode_data(self, payload: Dict) -> bool:
-        """
-        Validate that the episode data is complete and valid.
-        """
-        try:
-            # Check for required episode fields
-            required_fields = {
-                'grandparent_title': str,  # Show name
-                'parent_media_index': (int, str), # Season number (can be string or int)
-                'media_index': (int, str),       # Episode number (can be string or int)
-                'title': str,            # Episode name
-                'originally_available_at': str  # Air date
-            }
-
-            for field, field_type in required_fields.items():
-                if field not in payload:
-                    logger.warning(f"Missing required field: {field}")
-                    return False
-                
-                # Try to convert to expected type
-                try:
-                    if isinstance(field_type, tuple):  # Multiple types allowed
-                        if int in field_type:
-                            int(payload[field])  # Try to convert to int
-                        elif str in field_type and not isinstance(payload[field], str):
-                            str(payload[field])  # Try to convert to str
-                    elif field_type == int:
-                        int(payload[field])
-                    elif field_type == str and not isinstance(payload[field], str):
-                        str(payload[field])
-                except (ValueError, TypeError):
-                    logger.warning(f"Invalid type for field {field}: {payload[field]}")
-                    return False
-
-            return True
-
-        except Exception as e:
-            logger.error(f"Error validating episode data: {str(e)}")
-            return False 
+            # This prevents the webhook from failing and Plex from retrying 
