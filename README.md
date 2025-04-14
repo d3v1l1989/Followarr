@@ -40,7 +40,7 @@ This section guides you through setting up Followarr.
 
 - Discord Bot Token (See setup below)
 - TVDB API Key ([Get one here](https://thetvdb.com/subscribe))
-- Plex Media Server with webhooks enabled
+- Plex Media Server with Plex Pass (required for webhooks)
 - Docker and Docker Compose installed
 
 ### 🤖 Discord Bot Setup
@@ -168,48 +168,33 @@ This is the recommended method to install Followarr.
 
 #### Plex Webhook Setup
 
-1.  In Plex Media Server, go to **Settings** → **Webhooks**.
-2.  Click **Add Webhook**.
-3.  Configure the **Webhook URL**:
-    *   If Followarr and Plex are on the **same Docker bridge network**: `http://followarr:3000/webhook/plex` (uses Docker DNS)
-    *   If Followarr is on the host or different network: `http://<followarr_host_ip>:3000/webhook/plex` (replace `<followarr_host_ip>` with the IP address of the machine running Followarr).
-4.  Under **Events**, select:
-    *   `Media Added`
-5.  Save the webhook configuration.
+1.  **Access Plex Web Interface:**
+    - Open your Plex Media Server web interface (typically at `http://your-plex-server:32400/web`)
+    - Log in with your Plex account (must be a Plex Pass subscriber)
 
-**Detailed Webhook Setup Guide:**
+2.  **Navigate to Settings:**
+    - Click the wrench icon (⚙️) in the top right corner
+    - Select "Settings" from the dropdown menu
 
-1. **Access Plex Web Interface:**
-   - Open your Plex Media Server web interface (typically at `http://your-plex-server:32400/web`)
-   - Log in with your Plex account
+3.  **Add Webhook:**
+    - In the left sidebar, click on "Webhooks" under "Settings"
+    - Click the "Add Webhook" button
+    - Enter your Followarr webhook URL:
+      - Same Docker network: `http://followarr:3000/webhook/plex`
+      - Different machines: `http://<followarr_ip>:3000/webhook/plex`
+        (replace `<followarr_ip>` with your Followarr server's IP)
 
-2. **Navigate to Settings:**
-   - Click the wrench icon (⚙️) in the top right corner
-   - Select "Settings" from the dropdown menu
+4.  **Configure Events:**
+    - Under "Events", select:
+      - `library.new` (for new episode notifications)
 
-3. **Enable Webhooks (if needed):**
-   - Go to "Server" → "General"
-   - Ensure "Enable Webhooks" is checked
-   - If you don't see Webhooks in the sidebar, you'll need to enable this first
-
-4. **Add Webhook:**
-   - In the left sidebar, click on "Webhooks" under "Settings"
-   - Click the "Add Webhook" button
-   - Enter your Followarr webhook URL:
-     - Same Docker network: `http://followarr:3000/webhook/plex`
-     - Different machines: `http://<followarr_ip>:3000/webhook/plex`
-       (replace `<followarr_ip>` with your Followarr server's IP)
-
-5. **Configure Events:**
-   - Under "Events", select:
-     - `Media Added` (for new episode notifications)
-
-6. **Save and Test:**
-   - Click "Save Changes" to create the webhook
-   - Test by adding a new TV show episode to your Plex library
-   - You should receive a Discord notification if everything is set up correctly
+5.  **Save and Test:**
+    - Click "Save Changes" to create the webhook
+    - Test by adding a new TV show episode to your Plex library
+    - You should receive a Discord notification if everything is set up correctly
 
 **Important Notes:**
+- Plex webhooks require an active Plex Pass subscription
 - Ensure your Followarr instance is accessible from your Plex server
 - If using Docker, both containers must be on the same network
 - The webhook URL must be reachable from your Plex server

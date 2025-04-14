@@ -2,10 +2,12 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse
 import logging
 import json
-from typing import Callable, Dict
+from typing import Callable, Dict, Any
 import hmac
 import hashlib
 import base64
+import asyncio
+from datetime import datetime
 
 logging.basicConfig(
     level=logging.INFO,
@@ -14,94 +16,55 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class WebhookServer:
-    def __init__(self, notification_handler: Callable, plex_token: str):
+    def __init__(self, callback):
         self.app = FastAPI()
-        self.notification_handler = notification_handler
-        self.plex_token = plex_token
+        self.callback = callback
+        self.setup_routes()
 
-        @self.app.get("/health")
-        async def health_check():
-            """
-            Health check endpoint for monitoring and container orchestration.
-            Returns 200 OK if the server is running.
-            """
-            return {"status": "healthy"}
-
+    def setup_routes(self):
         @self.app.post("/webhook/plex")
-        async def plex_webhook(request: Request):
+        async def handle_plex_webhook(request: Request):
             try:
-                # Log request headers for debugging
-                logger.info(f"Received webhook request from {request.client.host}")
-                logger.debug(f"Request headers: {dict(request.headers)}")
+                # Get the raw body
+                body = await request.body()
                 
-                # Verify the webhook signature if present
-                signature = request.headers.get('X-Plex-Signature')
-                if signature:
-                    if not self._verify_plex_signature(request, signature):
-                        logger.warning("Invalid Plex webhook signature")
-                        return JSONResponse(
-                            status_code=401,
-                            content={"status": "error", "message": "Invalid signature"}
-                        )
+                # Parse the JSON payload
+                payload = json.loads(body)
                 
-                # Log the raw request body for debugging
-                raw_body = await request.body()
-                if not raw_body:
-                    logger.error("Received empty webhook request body")
-                    return JSONResponse(
-                        status_code=400,
-                        content={
-                            "status": "error",
-                            "message": "Empty request body"
+                # Log the received webhook
+                logger.info(f"Received Plex webhook: {payload.get('event')}")
+                
+                # Check if this is a media.added event
+                if payload.get('event') == 'library.new':
+                    # Extract relevant information from the payload
+                    metadata = payload.get('Metadata', {})
+                    
+                    # Check if it's a TV show episode
+                    if metadata.get('type') == 'episode':
+                        # Transform the payload to match our notification format
+                        notification_payload = {
+                            'event': 'media.added',
+                            'media_type': 'episode',
+                            'grandparent_title': metadata.get('grandparentTitle'),
+                            'parent_media_index': metadata.get('parentIndex'),
+                            'media_index': metadata.get('index'),
+                            'title': metadata.get('title'),
+                            'originally_available_at': metadata.get('originallyAvailableAt'),
+                            'summary': metadata.get('summary')
                         }
-                    )
+                        
+                        # Call the callback with the transformed payload
+                        await self.callback(notification_payload)
                 
-                logger.debug(f"Raw request body: {raw_body.decode()}")
-                
-                # Try to parse the JSON
-                try:
-                    payload = await request.json()
-                    logger.debug(f"Parsed JSON payload: {json.dumps(payload, indent=2)}")
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse JSON: {str(e)}")
-                    logger.error(f"Raw body that failed to parse: {raw_body.decode()}")
-                    return JSONResponse(
-                        status_code=400,
-                        content={
-                            "status": "error",
-                            "message": "Invalid JSON payload",
-                            "detail": str(e)
-                        }
-                    )
-                
-                # Validate the webhook payload
-                if not self._validate_plex_payload(payload):
-                    logger.warning(f"Invalid webhook payload: {json.dumps(payload, indent=2)}")
-                    return JSONResponse(
-                        status_code=400,
-                        content={
-                            "status": "error",
-                            "message": "Invalid webhook payload",
-                            "detail": "Missing required fields"
-                        }
-                    )
-                
-                # Process the webhook
-                await self._handle_plex_webhook(payload)
-                
-                logger.info("Successfully processed Plex webhook")
                 return JSONResponse(content={"status": "success"})
                 
             except Exception as e:
-                logger.error(f"Error processing webhook: {str(e)}", exc_info=True)
-                return JSONResponse(
-                    status_code=500,
-                    content={
-                        "status": "error",
-                        "message": "Internal server error",
-                        "detail": str(e)
-                    }
-                )
+                logger.error(f"Error processing webhook: {str(e)}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.app.get("/health")
+        async def health_check():
+            return {"status": "healthy"}
 
     def _verify_plex_signature(self, request: Request, signature: str) -> bool:
         """
@@ -204,7 +167,7 @@ class WebhookServer:
                         'originally_available_at': metadata.get('originallyAvailableAt'),
                         'summary': metadata.get('summary', '')
                     }
-                    await self.notification_handler(notification_payload)
+                    await self.callback(notification_payload)
                 else:
                     logger.info(f"Ignoring {media_type} notification")
             else:

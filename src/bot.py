@@ -15,7 +15,7 @@ from discord.app_commands import CommandTree
 from datetime import datetime, timedelta, timezone
 import calendar
 from collections import defaultdict
-from typing import Dict
+from typing import Dict, Any
 
 # Load env vars and setup logging
 load_dotenv()
@@ -62,14 +62,11 @@ class FollowarrBot(commands.Bot):
         # Initialize API clients and database
         self.tvdb_client = TVDBClient(os.getenv('TVDB_API_KEY'))
         self.plex_client = PlexClient(
-            os.getenv('PLEX_URL'),
-            os.getenv('PLEX_TOKEN')
+            base_url=os.getenv('PLEX_URL'),
+            token=os.getenv('PLEX_TOKEN')
         )
         self.db = Database()
-        self.webhook_server = WebhookServer(
-            self.handle_episode_notification,
-            os.getenv('PLEX_TOKEN')
-        )
+        self.webhook_server = WebhookServer(self.handle_plex_notification)
 
         # Setup slash commands
         self.setup_commands()
@@ -478,60 +475,52 @@ class FollowarrBot(commands.Bot):
         logger.error(f"Command error: {str(error)}")
         logger.error(traceback.format_exc())
 
-    async def handle_episode_notification(self, payload: Dict):
-        """Handle episode notification from Plex"""
+    async def handle_plex_notification(self, payload: Dict[str, Any]):
+        """
+        Handle Plex webhook notifications.
+        
+        Args:
+            payload (Dict[str, Any]): The webhook payload
+        """
         try:
-            # Extract episode information from payload
+            # Extract show information
             show_name = payload.get('grandparent_title')
             season_num = payload.get('parent_media_index')
             episode_num = payload.get('media_index')
             episode_title = payload.get('title')
-            episode_summary = payload.get('summary')
             air_date = payload.get('originally_available_at')
-
-            logger.info(f"Processing episode notification for {show_name} S{season_num}E{episode_num}")
-
-            # Get all users who follow this show
-            users = self.db.get_users_by_show(show_name)
+            summary = payload.get('summary')
+            
+            # Get users following this show
+            users = self.db.get_users_following_show(show_name)
+            
             if not users:
-                logger.info(f"No users follow {show_name}")
+                logger.info(f"No users following {show_name}")
                 return
-
-            logger.info(f"Found {len(users)} users following {show_name}")
-
-            # Get show details from TVDB to get the poster
-            show = await self.tvdb_client.search_show(show_name)
-            poster_url = None
-            if show and show.image_url:
-                poster_url = show.image_url
-
-            # Create embed for the notification
+                
+            # Create notification message
             embed = discord.Embed(
-                title=f"🎬 New Episode: {show_name}",
-                description=f"**S{season_num}E{episode_num} - {episode_title}**\n\n{episode_summary}",
+                title=f"New Episode: {show_name}",
+                description=f"Season {season_num}, Episode {episode_num}: {episode_title}",
                 color=discord.Color.blue()
             )
-            embed.add_field(name="Air Date", value=air_date, inline=True)
-            if poster_url:
-                embed.set_thumbnail(url=poster_url)
-
-            # Send DM to each user
-            for user in users:
+            
+            if air_date:
+                embed.add_field(name="Air Date", value=air_date, inline=True)
+            if summary:
+                embed.add_field(name="Summary", value=summary, inline=False)
+                
+            # Send notifications to all following users
+            for user_id in users:
                 try:
-                    discord_user = await self.fetch_user(int(user['discord_id']))
-                    if discord_user:
-                        await discord_user.send(embed=embed)
-                        logger.info(f"Sent notification to {discord_user.name}")
-                    else:
-                        logger.warning(f"Could not find Discord user with ID {user['discord_id']}")
-                except discord.Forbidden:
-                    logger.warning(f"Could not send DM to user {user['name']} - DMs are disabled")
+                    user = await self.fetch_user(user_id)
+                    await user.send(embed=embed)
+                    logger.info(f"Sent notification to user {user_id} for {show_name}")
                 except Exception as e:
-                    logger.error(f"Error sending notification to user {user['name']}: {e}")
-
+                    logger.error(f"Error sending notification to user {user_id}: {str(e)}")
+                    
         except Exception as e:
-            logger.error(f"Error handling episode notification: {e}")
-            logger.error(traceback.format_exc())
+            logger.error(f"Error handling Plex notification: {str(e)}")
 
 def main():
     try:
