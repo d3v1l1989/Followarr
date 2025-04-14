@@ -72,4 +72,31 @@ coverage.xml
 .hypothesis/
 
 # Test scripts
-test_tautulli_webhook.py 
+test_tautulli_webhook.py
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+log/
+
+# Distribution
+dist/
+build/
+
+# Misc
+.DS_Store
+Thumbs.db
+*.bak
+*.tmp
+*.temp
+
+# Project specific
+*.pid
+*.seed
+*.pid.lock 
