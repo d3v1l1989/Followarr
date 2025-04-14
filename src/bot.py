@@ -480,15 +480,22 @@ class FollowarrBot(commands.Bot):
         try:
             logger.info(f"Processing Plex notification: {payload}")
             
-            if payload.get('event') != 'media.added':
-                logger.info(f"Ignoring non-media.added event: {payload.get('event')}")
+            # Handle both library.new and media.added events
+            if payload.get('event') not in ['library.new', 'media.added']:
+                logger.info(f"Ignoring non-library.new/media.added event: {payload.get('event')}")
                 return
                 
-            if payload.get('media_type') != 'episode':
-                logger.info(f"Ignoring non-episode media: {payload.get('media_type')}")
+            # Get metadata from the payload
+            metadata = payload.get('Metadata', {})
+            if not metadata:
+                logger.error("Missing Metadata in notification payload")
                 return
                 
-            show_title = payload.get('grandparent_title')
+            if metadata.get('type') != 'episode':
+                logger.info(f"Ignoring non-episode content: {metadata.get('type')}")
+                return
+                
+            show_title = metadata.get('grandparentTitle')
             if not show_title:
                 logger.error("Missing show title in notification payload")
                 return
@@ -502,11 +509,11 @@ class FollowarrBot(commands.Bot):
             logger.info(f"Found {len(followers)} followers for show: {show_title}")
             
             # Create the notification message
-            season = payload.get('parent_media_index')
-            episode = payload.get('media_index')
-            title = payload.get('title')
-            air_date = payload.get('originally_available_at')
-            summary = payload.get('summary', 'No summary available')
+            season = metadata.get('parentIndex')
+            episode = metadata.get('index')
+            title = metadata.get('title')
+            air_date = metadata.get('originallyAvailableAt')
+            summary = metadata.get('summary', 'No summary available')
             
             # Try to get additional details from TVDB
             try:
