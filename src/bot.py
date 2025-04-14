@@ -259,7 +259,7 @@ class FollowarrBot(commands.Bot):
                 await interaction.response.defer()
                 
                 # Get user's followed shows
-                shows = await self.db.get_user_subscriptions(str(interaction.user.id))
+                shows = await self.db.get_user_follows(str(interaction.user.id))
                 if not shows:
                     await interaction.followup.send("You're not following any shows!")
                     return
@@ -276,11 +276,13 @@ class FollowarrBot(commands.Bot):
                     try:
                         show_details = await self.tvdb_client.get_show_details(show['show_id'])
                         if not show_details:
+                            logger.warning(f"Could not get show details for {show['show_title']}")
                             continue
                             
                         # Get next episode
                         next_episode = show_details.get('nextAiredEpisode')
                         if not next_episode:
+                            logger.info(f"No upcoming episodes found for {show['show_title']}")
                             continue
                             
                         # Format episode info
@@ -300,6 +302,7 @@ class FollowarrBot(commands.Bot):
                         
                     except Exception as e:
                         logger.error(f"Error getting episodes for {show['show_title']}: {str(e)}")
+                        logger.error(traceback.format_exc())
                         continue
                 
                 if not embed.fields:
@@ -309,7 +312,8 @@ class FollowarrBot(commands.Bot):
                 await interaction.followup.send(embed=embed)
                 
             except Exception as e:
-                logger.error(f"Error in calendar command: {str(e)}", exc_info=True)
+                logger.error(f"Error in calendar command: {str(e)}")
+                logger.error(traceback.format_exc())
                 await interaction.followup.send("An error occurred while processing your request. Please try again later.")
 
     async def setup_hook(self):
