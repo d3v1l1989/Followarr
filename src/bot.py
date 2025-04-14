@@ -450,13 +450,14 @@ class FollowarrBot(commands.Bot):
         await super().close()
 
     async def on_ready(self):
+        """Called when the bot is ready."""
         logger.info(f'Logged in as {self.user.name} (ID: {self.user.id})')
         logger.info('Bot is ready and online!')
         
         # Initialize DB here
         try:
             logger.info("Initializing database...")
-            self.db.init_db()
+            await self.db.init_db()
             logger.info("Database initialized successfully.")
         except Exception as e:
             logger.error(f"Error initializing database in on_ready: {e}", exc_info=True)
