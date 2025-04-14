@@ -22,39 +22,35 @@ class Database:
         self.database_url = database_url
         self.engine = create_async_engine(database_url)
         self.metadata = MetaData()
+        
+        # Define the follows table
         self.follows = Table(
             'follows',
             self.metadata,
             Column('user_id', Integer, primary_key=True),
             Column('show_title', String, primary_key=True)
         )
+        
+        # Create async session maker
         self.async_session_maker = sessionmaker(
             self.engine,
             class_=AsyncSession,
             expire_on_commit=False
         )
 
+    async def init_db(self):
+        """Initialize the database tables."""
+        try:
+            async with self.engine.begin() as conn:
+                await conn.run_sync(self.metadata.create_all)
+            logger.info("Database tables created successfully")
+        except Exception as e:
+            logger.error(f"Error creating database tables: {str(e)}")
+            raise
+
     async def async_session(self) -> AsyncSession:
         """Get an async session."""
         return self.async_session_maker()
-
-    def init_db(self):
-        # Explicitly touch the file path first to ensure it can be created/accessed
-        try:
-            db_path_str = self.engine.url.database
-            if db_path_str: # Should always be true for sqlite
-                db_path = Path(db_path_str)
-                logger.info(f"Ensuring database file exists at: {db_path}")
-                db_path.parent.mkdir(parents=True, exist_ok=True) # Ensure directory exists
-                db_path.touch(exist_ok=True) # Create file if not exists
-                logger.info(f"Database file path touched successfully.")
-            else:
-                logger.warning("Could not determine database file path from engine URL.")
-        except Exception as e:
-            logger.error(f"Error touching database file path: {e}", exc_info=True)
-            # We might still want to proceed and let create_all try
-            
-        Base.metadata.create_all(self.engine)
 
     def add_subscription(self, user_id: str, show_id: int, show_name: str) -> bool:
         """Add a show subscription for a user"""
@@ -177,4 +173,48 @@ class Database:
                 return followers
         except Exception as e:
             logger.error(f"Error getting show followers: {str(e)}")
+            return []
+
+    async def add_follower(self, user_id: int, show_title: str) -> bool:
+        """Add a user as a follower of a show."""
+        try:
+            async with self.async_session() as session:
+                stmt = self.follows.insert().values(
+                    user_id=user_id,
+                    show_title=show_title
+                )
+                await session.execute(stmt)
+                await session.commit()
+                return True
+        except Exception as e:
+            logger.error(f"Error adding follower: {str(e)}")
+            return False
+
+    async def remove_follower(self, user_id: int, show_title: str) -> bool:
+        """Remove a user as a follower of a show."""
+        try:
+            async with self.async_session() as session:
+                stmt = self.follows.delete().where(
+                    (self.follows.c.user_id == user_id) &
+                    (self.follows.c.show_title == show_title)
+                )
+                result = await session.execute(stmt)
+                await session.commit()
+                return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"Error removing follower: {str(e)}")
+            return False
+
+    async def get_user_follows(self, user_id: int) -> List[str]:
+        """Get all shows a user is following."""
+        try:
+            async with self.async_session() as session:
+                result = await session.execute(
+                    select(self.follows.c.show_title)
+                    .where(self.follows.c.user_id == user_id)
+                )
+                shows = result.scalars().all()
+                return shows
+        except Exception as e:
+            logger.error(f"Error getting user follows: {str(e)}")
             return [] 

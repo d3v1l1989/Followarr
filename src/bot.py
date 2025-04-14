@@ -48,6 +48,7 @@ class CustomCommandTree(CommandTree):
 
 class FollowarrBot(commands.Bot):
     def __init__(self):
+        """Initialize the bot."""
         intents = discord.Intents.default()
         intents.message_content = True
         
@@ -57,17 +58,24 @@ class FollowarrBot(commands.Bot):
             tree_cls=CustomCommandTree
         )
         
+        # Get environment variables
+        self.discord_token = os.getenv('DISCORD_BOT_TOKEN')
+        self.channel_id = int(os.getenv('DISCORD_CHANNEL_ID'))
+        self.tvdb_api_key = os.getenv('TVDB_API_KEY')
+        self.plex_url = os.getenv('PLEX_URL')
+        self.plex_token = os.getenv('PLEX_TOKEN')
+        self.database_url = os.getenv('DATABASE_URL', 'sqlite:////app/data/followarr.db')
+        
+        # Initialize components
+        self.db = Database(self.database_url)
+        self.tvdb_client = TVDBClient(self.tvdb_api_key)
+        self.plex_client = PlexClient(self.plex_url, self.plex_token)
+        
+        # Initialize webhook server
+        self.webhook_server = WebhookServer(self.handle_plex_notification)
+        
         logger.info("Initializing bot components...")
         
-        # Initialize API clients and database
-        self.tvdb_client = TVDBClient(os.getenv('TVDB_API_KEY'))
-        self.plex_client = PlexClient(
-            base_url=os.getenv('PLEX_URL'),
-            token=os.getenv('PLEX_TOKEN')
-        )
-        self.db = Database()
-        self.webhook_server = WebhookServer(self.handle_plex_notification)
-
         # Setup slash commands
         self.setup_commands()
 
