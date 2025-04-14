@@ -197,13 +197,13 @@ class TVDBClient:
             logger.error(f"Error getting series extended info: {e}")
             return None
 
-    async def search_show(self, show_name: str) -> Optional[TVShow]:
+    async def search_show(self, query: str) -> Optional[TVShow]:
         """Search for a TV show by name."""
         try:
-            # Search for the show
-            data = await self._make_request("GET", f"search?query={show_name}")
+            # Search for the show using async _make_request
+            data = await self._make_request("GET", f"search?query={query}")
             if not data or not data.get('data'):
-                logger.warning(f"No results found for query: {show_name}")
+                logger.warning(f"No results found for query: {query}")
                 return None
                 
             # Return the first result

@@ -87,73 +87,32 @@ class FollowarrBot(commands.Bot):
         self.webhook_server_task = None
 
     def setup_commands(self):
-        @self.tree.command(name="follow", description="Follow a TV show")
-        @app_commands.describe(show_name="The name of the show you want to follow")
-        async def follow(interaction: discord.Interaction, show_name: str):
-            """Follow a TV show."""
+        @self.tree.command(name="follow", description="Follow a TV show to receive notifications")
+        async def follow(self, interaction: discord.Interaction, show_name: str):
+            """Follow a TV show to receive notifications."""
             try:
-                await interaction.response.defer(ephemeral=False)
-                
-                # Search for the show
+                # Search for the show using TVDB
                 show = await self.tvdb_client.search_show(show_name)
                 if not show:
-                    await interaction.followup.send(f"Could not find show: {show_name}")
+                    await interaction.response.send_message(
+                        f"❌ Could not find show: {show_name}",
+                        ephemeral=True
+                    )
                     return
+
+                # Add the show to the user's follows
+                await self.db.add_follower(interaction.user.id, show.id, show.name)
                 
-                # Check if user is already following the show
-                user_follows = await self.db.get_user_follows(interaction.user.id)
-                if show_name in user_follows:
-                    await interaction.followup.send(f"You are already following {show_name}!")
-                    return
-                
-                # Add follower
-                success = await self.db.add_follower(interaction.user.id, show_name)
-                if not success:
-                    await interaction.followup.send(f"Failed to follow {show_name}. Please try again.")
-                    return
-                
-                # Create follow confirmation embed
-                embed = discord.Embed(
-                    title="✅ Show Followed",
-                    description=f"You are now following: **{show_name}**",
-                    color=discord.Color.green()
+                await interaction.response.send_message(
+                    f"✅ Now following: {show.name}",
+                    ephemeral=True
                 )
-                
-                if hasattr(show, 'image_url') and show.image_url:
-                    try:
-                        embed.set_thumbnail(url=show.image_url)
-                    except Exception as e:
-                        logger.error(f"Error setting thumbnail: {str(e)}")
-                        try:
-                            embed.set_image(url=show.image_url)
-                        except Exception as e:
-                            logger.error(f"Error setting main image: {str(e)}")
-                
-                if show.overview:
-                    overview = show.overview[:1024] + '...' if len(show.overview) > 1024 else show.overview
-                    embed.add_field(name="Overview", value=overview, inline=False)
-                
-                status = show.status.get('name', 'Unknown') if isinstance(show.status, dict) else str(show.status)
-                embed.add_field(name="Status", value=status, inline=True)
-                
-                if show.first_aired:
-                    try:
-                        air_date = datetime.strptime(show.first_aired, '%Y-%m-%d').strftime('%B %d, %Y')
-                        embed.add_field(name="First Aired", value=air_date, inline=True)
-                    except ValueError:
-                        embed.add_field(name="First Aired", value=show.first_aired, inline=True)
-                
-                if hasattr(show, 'network') and show.network:
-                    network_name = show.network if isinstance(show.network, str) else show.network.get('name', 'Unknown')
-                    embed.add_field(name="Network", value=network_name, inline=True)
-                
-                embed.set_footer(text="Data provided by TVDB")
-                
-                await interaction.followup.send(embed=embed)
-                
             except Exception as e:
-                logger.error(f"Error following show: {str(e)}")
-                await interaction.followup.send(f"An error occurred while following the show: {str(e)}")
+                logger.error(f"Error in follow command: {str(e)}")
+                await interaction.response.send_message(
+                    "❌ An error occurred while processing your request.",
+                    ephemeral=True
+                )
 
         @self.tree.command(name="list", description="List all shows you're following")
         async def list_shows(interaction: discord.Interaction):
