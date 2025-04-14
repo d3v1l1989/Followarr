@@ -84,29 +84,32 @@ class TVDBClient:
         self.api_key = api_key
         self.base_url = "https://api4.thetvdb.com/v4"
         self.token = None
-        self.token_expiry = 0
-        
-    def _get_token(self) -> str:
+        self.token_expiry = None
+
+    async def _get_token(self) -> str:
         """Get or refresh the TVDB API token."""
-        current_time = time.time()
-        if self.token and current_time < self.token_expiry:
+        if self.token and self.token_expiry and datetime.now() < self.token_expiry:
             return self.token
-            
+
         try:
-            response = requests.post(
-                f"{self.base_url}/login",
-                json={"apikey": self.api_key}
-            )
-            response.raise_for_status()
-            data = response.json()
-            self.token = data['data']['token']
-            # Set token expiry to 23 hours from now (TVDB tokens last 24 hours)
-            self.token_expiry = current_time + (23 * 60 * 60)
-            return self.token
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    f"{self.base_url}/login",
+                    json={"apikey": self.api_key}
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        self.token = data['data']['token']
+                        # Set token expiry to 23 hours from now
+                        self.token_expiry = datetime.now() + timedelta(hours=23)
+                        return self.token
+                    else:
+                        logger.error(f"Failed to get TVDB token: {response.status}")
+                        raise Exception("Failed to get TVDB token")
         except Exception as e:
             logger.error(f"Error getting TVDB token: {str(e)}")
             raise
-            
+
     async def _make_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """Make an async request to the TVDB API."""
         try:
@@ -134,21 +137,23 @@ class TVDBClient:
         except Exception as e:
             logger.error(f"Error making TVDB request: {str(e)}")
             raise
-            
-    def search_show(self, query: str) -> Optional[Dict[str, Any]]:
+
+    async def search_show(self, query: str) -> Optional[TVShow]:
         """Search for a TV show by name."""
         try:
-            data = self._make_request("GET", f"search?query={query}")
+            # Search for the show
+            data = await self._make_request("GET", f"search?query={query}")
             if not data or not data.get('data'):
                 logger.warning(f"No results found for query: {query}")
                 return None
                 
             # Return the first result
-            return data['data'][0]
+            show_data = data['data'][0]
+            return TVShow.from_api_response(show_data)
         except Exception as e:
             logger.error(f"Error searching for show: {str(e)}")
             return None
-            
+
     async def get_show_details(self, show_id: int) -> Optional[Dict[str, Any]]:
         """Get detailed information about a TV show."""
         try:
@@ -161,7 +166,7 @@ class TVDBClient:
         except Exception as e:
             logger.error(f"Error getting show details: {str(e)}")
             return None
-            
+
     async def get_episode_details(self, episode_id: int) -> Optional[Dict[str, Any]]:
         """Get detailed information about an episode."""
         try:
@@ -197,22 +202,6 @@ class TVDBClient:
             logger.error(f"Error getting series extended info: {e}")
             return None
 
-    async def search_show(self, query: str) -> Optional[TVShow]:
-        """Search for a TV show by name."""
-        try:
-            # Search for the show using async _make_request
-            data = await self._make_request("GET", f"search?query={query}")
-            if not data or not data.get('data'):
-                logger.warning(f"No results found for query: {query}")
-                return None
-                
-            # Return the first result
-            show_data = data['data'][0]
-            return TVShow.from_api_response(show_data)
-        except Exception as e:
-            logger.error(f"Error searching for show: {str(e)}")
-            return None
-            
     async def get_series(self, series_id: str) -> Optional[Dict]:
         try:
             response = await self._make_request('GET', f'series/{series_id}')
