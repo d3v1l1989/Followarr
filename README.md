@@ -186,7 +186,8 @@ This is the recommended method to install Followarr.
 
 4.  **Configure Events:**
     - Under "Events", select:
-      - `library.new` (for new episode notifications)
+      - `library.new` (This event is triggered when new content is added to your library)
+      - Optionally, you can also select `library.on.deck` if you want notifications when items appear in your On Deck
 
 5.  **Save and Test:**
     - Click "Save Changes" to create the webhook

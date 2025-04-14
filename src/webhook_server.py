@@ -32,10 +32,11 @@ class WebhookServer:
                 payload = json.loads(body)
                 
                 # Log the received webhook
-                logger.info(f"Received Plex webhook: {payload.get('event')}")
+                event = payload.get('event')
+                logger.info(f"Received Plex webhook: {event}")
                 
-                # Check if this is a media.added event
-                if payload.get('event') == 'library.new':
+                # Check if this is a library event
+                if event in ['library.new', 'library.on.deck']:
                     # Extract relevant information from the payload
                     metadata = payload.get('Metadata', {})
                     
