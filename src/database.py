@@ -189,10 +189,10 @@ class Database:
             logger.error(f"Error getting show followers: {str(e)}")
             return []
 
-    async def add_follower(self, user_id: int, show_title: str) -> bool:
+    async def add_follower(self, user_id: int, show_id: int, show_name: str) -> bool:
         """Add a user as a follower of a show."""
         try:
-            logger.info(f"Adding follower {user_id} for show: {show_title}")
+            logger.info(f"Adding follower {user_id} for show: {show_name} (ID: {show_id})")
             session = await self.async_session()
             async with session as session:
                 # Check if already following using case-insensitive matching
@@ -200,23 +200,24 @@ class Database:
                     select(self.follows)
                     .where(
                         (self.follows.c.user_id == user_id) &
-                        (self.follows.c.show_title.ilike(show_title))
+                        (self.follows.c.show_title.ilike(show_name))
                     )
                 )
                 existing = result.first()
                 
                 if existing:
-                    logger.info(f"User {user_id} already follows {show_title}")
+                    logger.info(f"User {user_id} already follows {show_name}")
                     return True
                 
                 # Add new follower
                 stmt = self.follows.insert().values(
                     user_id=user_id,
-                    show_title=show_title
+                    show_id=show_id,
+                    show_title=show_name
                 )
                 await session.execute(stmt)
                 await session.commit()
-                logger.info(f"Successfully added follower {user_id} for show: {show_title}")
+                logger.info(f"Successfully added follower {user_id} for show: {show_name}")
                 return True
         except Exception as e:
             logger.error(f"Error adding follower: {str(e)}")
