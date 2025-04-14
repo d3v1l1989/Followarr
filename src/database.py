@@ -244,11 +244,11 @@ class Database:
     async def get_user_follows(self, user_id: str) -> List[Dict[str, Any]]:
         """Get all shows followed by a user."""
         try:
-            async with self.Session() as session:
+            session = await self.async_session()
+            async with session as session:
                 result = await session.execute(
-                    select(Show.title, Show.tvdb_id)
-                    .join(Follow)
-                    .where(Follow.user_id == user_id)
+                    select(self.follows.c.show_title, self.follows.c.show_id)
+                    .where(self.follows.c.user_id == int(user_id))
                 )
                 shows = result.all()
                 
