@@ -39,8 +39,9 @@ class TVShow:
     remote_ids: Optional[List[Dict[str, Any]]] = None
 
     def __post_init__(self):
-        if isinstance(self.id, str):
-            self.id = int(self.id)
+        # Handle TVDB v4 ID format (e.g., 'series-75978')
+        if isinstance(self.id, str) and self.id.startswith('series-'):
+            self.id = int(self.id.replace('series-', ''))
         
         if not self.image_url and self.image:
             image_path = self.image if self.image.startswith('/') else f"/{self.image}"
