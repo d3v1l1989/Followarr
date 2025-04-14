@@ -88,7 +88,7 @@ class FollowarrBot(commands.Bot):
 
     def setup_commands(self):
         @self.tree.command(name="follow", description="Follow a TV show to receive notifications")
-        async def follow(self, interaction: discord.Interaction, show_name: str):
+        async def follow(interaction: discord.Interaction, show_name: str):
             """Follow a TV show to receive notifications."""
             try:
                 # Search for the show using TVDB
