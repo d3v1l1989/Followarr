@@ -243,23 +243,26 @@ class FollowarrBot(commands.Bot):
                 await interaction.response.defer()
                 
                 # Get user's followed shows
-                shows = self.db.get_user_subscriptions(str(interaction.user.id))
+                shows = await self.db.get_user_follows(interaction.user.id)
                 if not shows:
                     await interaction.followup.send("You're not following any shows! Use `/follow` to add some.")
                     return
 
                 # Get upcoming episodes for all shows
                 all_episodes = []
-                for show in shows:
+                for show_name in shows:
                     try:
+                        show = await self.tvdb_client.search_show(show_name)
+                        if not show:
+                            logger.warning(f"Could not find show in TVDB: {show_name}")
+                            continue
+                            
                         episodes = await self.tvdb_client.get_upcoming_episodes(show['id'])
                         for episode in episodes:
-                            # Add debug logging to see the episode structure
-                            logger.debug(f"Episode data for {show['name']}: {episode}")
-                            episode['show_name'] = show['name']
+                            episode['show_name'] = show_name
                             all_episodes.append(episode)
                     except Exception as e:
-                        logger.error(f"Error getting episodes for {show['name']}: {str(e)}")
+                        logger.error(f"Error getting episodes for {show_name}: {str(e)}")
                         continue
 
                 if not all_episodes:
