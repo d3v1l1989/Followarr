@@ -101,17 +101,21 @@ class FollowarrBot(commands.Bot):
                     return
                 
                 # Check if user is already following the show
-                if self.db.is_user_subscribed(str(interaction.user.id), show.id):
-                    await interaction.followup.send(f"You are already following {show.name}!")
+                user_follows = await self.db.get_user_follows(interaction.user.id)
+                if show_name in user_follows:
+                    await interaction.followup.send(f"You are already following {show_name}!")
                     return
                 
-                # Add subscription
-                self.db.add_subscription(str(interaction.user.id), show.id, show.name)
+                # Add follower
+                success = await self.db.add_follower(interaction.user.id, show_name)
+                if not success:
+                    await interaction.followup.send(f"Failed to follow {show_name}. Please try again.")
+                    return
                 
                 # Create follow confirmation embed
                 embed = discord.Embed(
                     title="✅ Show Followed",
-                    description=f"You are now following: **{show.name}**",
+                    description=f"You are now following: **{show_name}**",
                     color=discord.Color.green()
                 )
                 
@@ -188,23 +192,28 @@ class FollowarrBot(commands.Bot):
             try:
                 await interaction.response.defer()
                 
+                # Check if user is following the show
+                user_follows = await self.db.get_user_follows(interaction.user.id)
+                if show_name not in user_follows:
+                    await interaction.followup.send(f"You are not following {show_name}!")
+                    return
+                
+                # Remove follower
+                success = await self.db.remove_follower(interaction.user.id, show_name)
+                if not success:
+                    await interaction.followup.send(f"Failed to unfollow {show_name}. Please try again.")
+                    return
+                
+                # Create unfollow confirmation embed
+                embed = discord.Embed(
+                    title="❌ Show Unfollowed",
+                    description=f"You are no longer following: **{show_name}**",
+                    color=discord.Color.red()
+                )
+                
+                # Try to get show details for the embed
                 show = await self.tvdb_client.search_show(show_name)
-                
-                if not show:
-                    await interaction.followup.send(f"Could not find show: {show_name}")
-                    return
-                
-                if not self.db.is_user_subscribed(str(interaction.user.id), show.id):
-                    await interaction.followup.send(f"You are not following {show.name}!")
-                    return
-                
-                if self.db.remove_subscription(str(interaction.user.id), show.id):
-                    embed = discord.Embed(
-                        title="❌ Show Unfollowed",
-                        description=f"You are no longer following: **{show.name}**",
-                        color=discord.Color.red()
-                    )
-                    
+                if show:
                     if hasattr(show, 'image_url') and show.image_url:
                         try:
                             embed.set_thumbnail(url=show.image_url)
@@ -220,10 +229,8 @@ class FollowarrBot(commands.Bot):
                         embed.add_field(name="Status", value=status, inline=True)
                     
                     embed.set_footer(text="Data provided by TVDB")
-                    
-                    await interaction.followup.send(embed=embed)
-                else:
-                    await interaction.followup.send(f"Failed to unfollow {show.name}. Please try again.")
+                
+                await interaction.followup.send(embed=embed)
                 
             except Exception as e:
                 logger.error(f"Error in unfollow command: {str(e)}", exc_info=True)
