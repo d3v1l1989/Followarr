@@ -157,7 +157,7 @@ class FollowarrBot(commands.Bot):
             try:
                 await interaction.response.defer()
                 
-                shows = self.db.get_user_subscriptions(str(interaction.user.id))
+                shows = await self.db.get_user_subscriptions(str(interaction.user.id))
                 
                 if not shows:
                     await interaction.followup.send("You're not following any shows!")
@@ -171,7 +171,7 @@ class FollowarrBot(commands.Bot):
                 for show in shows:
                     embed.add_field(
                         name=show['name'],
-                        value=f"ID: {show['id']}",
+                        value="\u200b",  # Zero-width space for empty value
                         inline=False
                     )
                 

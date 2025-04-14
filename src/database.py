@@ -105,23 +105,22 @@ class Database:
         finally:
             session.close()
 
-    def get_user_subscriptions(self, user_id: str) -> List[Dict]:
+    async def get_user_subscriptions(self, user_id: str) -> List[Dict]:
         """Get all shows a user is subscribed to"""
-        session = self.Session()
         try:
-            subscriptions = session.query(Subscription).filter_by(
-                user_id=str(user_id)
-            ).all()
-            
-            return [
-                {
-                    'id': sub.show_id,
-                    'name': sub.show_name
-                }
-                for sub in subscriptions
-            ]
-        finally:
-            session.close()
+            logger.info(f"Getting subscriptions for user: {user_id}")
+            session = await self.async_session()
+            async with session as session:
+                result = await session.execute(
+                    select(self.follows.c.show_title)
+                    .where(self.follows.c.user_id == int(user_id))
+                )
+                shows = result.scalars().all()
+                logger.info(f"User {user_id} follows {len(shows)} shows: {shows}")
+                return [{'name': show} for show in shows]
+        except Exception as e:
+            logger.error(f"Error getting user subscriptions: {str(e)}")
+            return []
 
     def get_show_subscribers(self, show_id: int) -> List[str]:
         """Get all users subscribed to a show"""
