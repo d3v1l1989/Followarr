@@ -1,5 +1,6 @@
-from sqlalchemy import create_engine, Column, Integer, String, select, create_async_engine, MetaData, Table
-from sqlalchemy.orm import sessionmaker, declarative_base, AsyncSession
+from sqlalchemy import Column, Integer, String, select, MetaData, Table
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 import os
 from typing import List, Dict
 import logging
@@ -7,9 +8,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-Base = declarative_base()
-
-class Subscription(Base):
+class Subscription:
     __tablename__ = 'subscriptions'
     
     id = Column(Integer, primary_key=True)
