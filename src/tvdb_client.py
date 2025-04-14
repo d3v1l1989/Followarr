@@ -43,9 +43,20 @@ class TVShow:
         if isinstance(self.id, str) and self.id.startswith('series-'):
             self.id = int(self.id.replace('series-', ''))
         
+        # Prioritize direct image URL if available
         if not self.image_url and self.image:
-            image_path = self.image if self.image.startswith('/') else f"/{self.image}"
-            self.image_url = f"https://www.thetvdb.com{image_path}"
+            if self.image.startswith('http'):
+                self.image_url = self.image
+            else:
+                image_path = self.image if self.image.startswith('/') else f"/{self.image}"
+                self.image_url = f"https://www.thetvdb.com{image_path}"
+        
+        # If we still don't have an image URL, try to get it from artworks
+        if not self.image_url and self.artworks:
+            for artwork in self.artworks:
+                if artwork.get('type') == 'poster':
+                    self.image_url = artwork.get('image')
+                    break
 
     @classmethod
     def from_api_response(cls, data: Dict[str, Any]) -> 'TVShow':
@@ -161,6 +172,8 @@ class TVDBClient:
                 
             if 'image_url' in show_data:
                 logger.info(f"Show has direct image URL: {show_data['image_url']}")
+                # Use the direct image URL if available
+                show_data['image'] = show_data['image_url']
             else:
                 logger.info(f"No direct image URL found for show: {show_data.get('name')}")
                 
