@@ -173,44 +173,53 @@ class FollowarrBot(commands.Bot):
             try:
                 await interaction.response.defer()
                 
-                # Check if user is following the show
-                user_follows = await self.db.get_user_follows(interaction.user.id)
-                if show_name not in user_follows:
-                    await interaction.followup.send(f"You are not following {show_name}!")
+                # Get user's followed shows
+                user_follows = await self.db.get_user_follows(str(interaction.user.id))
+                if not user_follows:
+                    await interaction.followup.send("You're not following any shows!")
+                    return
+                
+                # Find the show (case-insensitive)
+                show_to_unfollow = None
+                for show in user_follows:
+                    if show['show_title'].lower() == show_name.lower():
+                        show_to_unfollow = show
+                        break
+                
+                if not show_to_unfollow:
+                    await interaction.followup.send(f"You're not following {show_name}!")
                     return
                 
                 # Remove follower
-                success = await self.db.remove_follower(interaction.user.id, show_name)
+                success = await self.db.remove_follower(str(interaction.user.id), show_to_unfollow['show_id'])
                 if not success:
-                    await interaction.followup.send(f"Failed to unfollow {show_name}. Please try again.")
+                    await interaction.followup.send("Failed to unfollow the show. Please try again later.")
                     return
                 
                 # Get show details for the embed
-                show = await self.tvdb_client.search_show(show_name)
+                show_details = await self.tvdb_client.get_show_details(show_to_unfollow['show_id'])
+                if not show_details:
+                    await interaction.followup.send(f"Successfully unfollowed {show_to_unfollow['show_title']}!")
+                    return
                 
                 # Create unfollow confirmation embed
                 embed = discord.Embed(
-                    title="❌ Show Unfollowed",
-                    description=f"You are no longer following: **{show_name}**",
+                    title="Show Unfollowed",
+                    description=f"You are no longer following {show_to_unfollow['show_title']}",
                     color=discord.Color.red()
                 )
                 
-                if show:
-                    if show.overview:
-                        overview = show.overview[:1024] + '...' if len(show.overview) > 1024 else show.overview
-                        embed.add_field(name="Overview", value=overview, inline=False)
-                    
-                    if show.status:
-                        status = show.status.get('name', 'Unknown') if isinstance(show.status, dict) else str(show.status)
-                        embed.add_field(name="Status", value=status, inline=True)
-                    
-                    if show.image_url:
-                        try:
-                            embed.set_thumbnail(url=show.image_url)
-                        except Exception as e:
-                            logger.error(f"Error setting thumbnail: {str(e)}")
-                    
-                    embed.set_footer(text="Data provided by TVDB")
+                if show_details.get('overview'):
+                    overview = show_details['overview'][:100] + '...' if len(show_details['overview']) > 100 else show_details['overview']
+                    embed.add_field(name="Overview", value=overview, inline=False)
+                
+                if show_details.get('status'):
+                    embed.add_field(name="Status", value=show_details['status'], inline=True)
+                
+                if show_details.get('image'):
+                    embed.set_thumbnail(url=show_details['image'])
+                
+                embed.set_footer(text="Data provided by TVDB")
                 
                 await interaction.followup.send(embed=embed)
                 

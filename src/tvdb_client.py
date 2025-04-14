@@ -155,15 +155,36 @@ class TVDBClient:
             logger.error(f"Error searching for show: {str(e)}")
             return None
 
-    async def get_show_details(self, show_id: int) -> Optional[Dict[str, Any]]:
+    async def get_show_details(self, show_id: str) -> Optional[Dict[str, Any]]:
         """Get detailed information about a TV show."""
         try:
-            data = await self._make_request("GET", f"series/{show_id}")
-            if not data or not data.get('data'):
-                logger.warning(f"No details found for show ID: {show_id}")
+            data = await self._make_request(f"/series/{show_id}/extended")
+            if not data:
                 return None
                 
-            return data['data']
+            show = data.get('data', {})
+            if not show:
+                return None
+                
+            # Get the primary image URL
+            image_url = None
+            if show.get('image'):
+                image_url = show['image']
+            elif show.get('images'):
+                for image in show['images']:
+                    if image.get('type') == 'poster' and image.get('thumbnail'):
+                        image_url = image['thumbnail']
+                        break
+            
+            return {
+                'id': show.get('id'),
+                'name': show.get('name'),
+                'overview': show.get('overview'),
+                'status': show.get('status', {}).get('name'),
+                'image': image_url,
+                'nextAiredEpisode': show.get('nextAiredEpisode')
+            }
+            
         except Exception as e:
             logger.error(f"Error getting show details: {str(e)}")
             return None
