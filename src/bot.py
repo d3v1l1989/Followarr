@@ -217,7 +217,15 @@ class FollowarrBot(commands.Bot):
                     embed.add_field(name="Status", value=show_details['status'], inline=True)
                 
                 if show_details.get('image'):
-                    embed.set_thumbnail(url=show_details['image'])
+                    try:
+                        # Ensure the URL is valid
+                        if show_details['image'].startswith('http'):
+                            embed.set_thumbnail(url=show_details['image'])
+                            logger.info(f"Set thumbnail for {show_to_unfollow['show_title']}: {show_details['image']}")
+                        else:
+                            logger.warning(f"Invalid image URL for {show_to_unfollow['show_title']}: {show_details['image']}")
+                    except Exception as e:
+                        logger.error(f"Error setting thumbnail: {str(e)}")
                 
                 embed.set_footer(text="Data provided by TVDB")
                 

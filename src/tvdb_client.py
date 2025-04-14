@@ -176,6 +176,10 @@ class TVDBClient:
                         image_url = image['thumbnail']
                         break
             
+            # If we have an image URL, make sure it's absolute
+            if image_url and not image_url.startswith('http'):
+                image_url = f"https://artworks.thetvdb.com{image_url}"
+            
             return {
                 'id': show.get('id'),
                 'name': show.get('name'),
