@@ -203,7 +203,7 @@ class FollowarrBot(commands.Bot):
                 
                 logger.info(f"Found show to unfollow: {show_to_unfollow['show_title']} (ID: {show_to_unfollow['show_id']})")
                 # Remove follower
-                success = await self.db.remove_follower(str(interaction.user.id), show_to_unfollow['show_id'])
+                success = await self.db.remove_follower(interaction.user.id, show_to_unfollow['show_title'])
                 if not success:
                     logger.error(f"Failed to remove follower for show: {show_to_unfollow['show_title']}")
                     await interaction.followup.send("Failed to unfollow the show. Please try again later.")
