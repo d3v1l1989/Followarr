@@ -177,10 +177,10 @@ class Database:
             logger.info(f"Looking for followers of show: {show_title}")
             session = await self.async_session()
             async with session as session:
-                # Get all followers for this show
+                # Get all followers for this show using case-insensitive matching
                 result = await session.execute(
                     select(self.follows.c.user_id)
-                    .where(self.follows.c.show_title == show_title)
+                    .where(self.follows.c.show_title.ilike(show_title))
                 )
                 followers = result.scalars().all()
                 logger.info(f"Found {len(followers)} followers for show: {show_title}")
@@ -195,12 +195,12 @@ class Database:
             logger.info(f"Adding follower {user_id} for show: {show_title}")
             session = await self.async_session()
             async with session as session:
-                # Check if already following
+                # Check if already following using case-insensitive matching
                 result = await session.execute(
                     select(self.follows)
                     .where(
                         (self.follows.c.user_id == user_id) &
-                        (self.follows.c.show_title == show_title)
+                        (self.follows.c.show_title.ilike(show_title))
                     )
                 )
                 existing = result.first()
@@ -227,9 +227,10 @@ class Database:
         try:
             session = await self.async_session()
             async with session as session:
+                # Remove follower using case-insensitive matching
                 stmt = self.follows.delete().where(
                     (self.follows.c.user_id == user_id) &
-                    (self.follows.c.show_title == show_title)
+                    (self.follows.c.show_title.ilike(show_title))
                 )
                 result = await session.execute(stmt)
                 await session.commit()
