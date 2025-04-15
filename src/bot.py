@@ -211,7 +211,7 @@ class FollowarrBot(commands.Bot):
                 await interaction.response.defer()
                 
                 # Get user's followed shows
-                user_follows = await self.db.get_user_follows(str(interaction.user.id))
+                user_follows = await self.db.get_user_subscriptions(str(interaction.user.id))
                 if not user_follows:
                     logger.info(f"User {interaction.user.name} has no followed shows")
                     await interaction.followup.send("You're not following any shows!")
@@ -240,7 +240,7 @@ class FollowarrBot(commands.Bot):
                     if title != show_name:
                         logger.info(f"Trying fallback title: {title}")
                     for show in user_follows:
-                        if show['show_title'].lower() == title.lower():
+                        if show['name'].lower() == title.lower():
                             show_to_unfollow = show
                             logger.info(f"Found show to unfollow using title: {title}")
                             break
@@ -252,31 +252,25 @@ class FollowarrBot(commands.Bot):
                     await interaction.followup.send(f"You're not following {show_name}!")
                     return
                 
-                logger.info(f"Found show to unfollow: {show_to_unfollow['show_title']} (ID: {show_to_unfollow['show_id']})")
+                logger.info(f"Found show to unfollow: {show_to_unfollow['name']} (ID: {show_to_unfollow['show_id']})")
                 # Remove follower
-                success = await self.db.remove_follower(interaction.user.id, show_to_unfollow['show_title'])
+                success = await self.db.remove_follower(interaction.user.id, show_to_unfollow['name'])
                 if not success:
-                    logger.error(f"Failed to remove follower for show: {show_to_unfollow['show_title']}")
+                    logger.error(f"Failed to remove follower for show: {show_to_unfollow['name']}")
                     await interaction.followup.send("Failed to unfollow the show. Please try again later.")
-                    return
-                
-                # Check if this is a movie ID (starts with 'movie-')
-                if isinstance(show_to_unfollow['show_id'], str) and show_to_unfollow['show_id'].startswith('movie-'):
-                    # For movies, just send a simple confirmation
-                    await interaction.followup.send(f"Successfully unfollowed {show_to_unfollow['show_title']}!")
                     return
                 
                 # Get show details for the embed
                 show_details = await self.tvdb_client.get_show_details(show_to_unfollow['show_id'])
                 if not show_details:
-                    logger.warning(f"Could not get show details for {show_to_unfollow['show_title']}")
-                    await interaction.followup.send(f"Successfully unfollowed {show_to_unfollow['show_title']}!")
+                    logger.warning(f"Could not get show details for {show_to_unfollow['name']}")
+                    await interaction.followup.send(f"Successfully unfollowed {show_to_unfollow['name']}!")
                     return
                 
                 # Create unfollow confirmation embed
                 embed = discord.Embed(
                     title="Show Unfollowed",
-                    description=f"You are no longer following {show_to_unfollow['show_title']}",
+                    description=f"You are no longer following {show_to_unfollow['name']}",
                     color=discord.Color.red()
                 )
                 
@@ -291,13 +285,13 @@ class FollowarrBot(commands.Bot):
                     try:
                         # Ensure the URL is valid
                         if show_details['image'].startswith('http'):
-                            logger.info(f"Setting thumbnail for {show_to_unfollow['show_title']} with URL: {show_details['image']}")
+                            logger.info(f"Setting thumbnail for {show_to_unfollow['name']} with URL: {show_details['image']}")
                             embed.set_thumbnail(url=show_details['image'])
-                            logger.info(f"Successfully set thumbnail for {show_to_unfollow['show_title']}")
+                            logger.info(f"Successfully set thumbnail for {show_to_unfollow['name']}")
                         else:
-                            logger.warning(f"Invalid image URL for {show_to_unfollow['show_title']}: {show_details['image']}")
+                            logger.warning(f"Invalid image URL for {show_to_unfollow['name']}: {show_details['image']}")
                     except Exception as e:
-                        logger.error(f"Error setting thumbnail for {show_to_unfollow['show_title']}: {str(e)}")
+                        logger.error(f"Error setting thumbnail for {show_to_unfollow['name']}: {str(e)}")
                         logger.error(traceback.format_exc())
                 
                 embed.set_footer(text="Data provided by TVDB")

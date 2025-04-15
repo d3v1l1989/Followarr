@@ -114,12 +114,12 @@ class Database:
             session = await self.async_session()
             async with session as session:
                 result = await session.execute(
-                    select(self.follows.c.show_title)
-                    .where(self.follows.c.user_id == int(user_id))
+                    select(self.follows.c.show_title, self.follows.c.show_id)
+                    .where(self.follows.c.user_id == user_id)
                 )
-                shows = result.scalars().all()
-                logger.info(f"User {user_id} follows {len(shows)} shows: {shows}")
-                return [{'name': show} for show in shows]
+                shows = result.all()
+                logger.info(f"User {user_id} follows {len(shows)} shows: {[show.show_title for show in shows]}")
+                return [{'name': show.show_title, 'show_id': show.show_id} for show in shows]
         except Exception as e:
             logger.error(f"Error getting user subscriptions: {str(e)}")
             return []
