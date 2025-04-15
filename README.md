@@ -172,7 +172,7 @@ This is the recommended method to install Followarr.
 
 ### ⚙️ Post-Installation Configuration
 
-*   **Database & Logs:** Followarr uses Docker named volumes (`followarr-data` and `followarr-logs`) by default to store the database and logs. These are managed by Docker and persist even if the container is removed.
+*   **Database & Logs:** Followarr uses bind mounts to store the database and logs in the `data` and `logs` directories respectively. These directories are mounted from your host system and will persist even if the container is removed or restarted.
 *   **Plex Webhook:** Configure Plex to send webhook notifications to Followarr for new episodes (see details below).
 
 #### Plex Webhook Setup
@@ -228,7 +228,7 @@ networks:
     # Navigate to your followarr directory
     docker compose restart followarr
     ```
-*   **View Volume Data (Advanced):** You can inspect the data stored in the named volumes using Docker commands if needed (e.g., `docker volume inspect followarr_followarr-data`).
+*   **View Volume Data (Advanced):** You can inspect the data stored in the bind mounts using standard file system commands since they are stored directly on your host system.
 
 ## 🔧 Advanced Configuration
 
