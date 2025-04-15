@@ -117,7 +117,21 @@ This is the recommended method to install Followarr.
         driver: bridge # Default bridge network
     ```
 
-3.  **Create and Configure `.env` File:**
+3.  **Set Up Volume Permissions:**
+    Before starting the container, ensure the data and logs directories have the correct permissions:
+    ```bash
+    # Create directories if they don't exist
+    mkdir -p data logs
+
+    # Set ownership to match the UID:GID in your .env file (default 1000:1000)
+    chown -R 1000:1000 data logs
+
+    # Set directory permissions
+    chmod 755 data logs
+    ```
+    This ensures the container user has proper permissions to write to the mounted volumes.
+
+4.  **Create and Configure `.env` File:**
     Create a file named `.env` in the `followarr` directory and paste the following content. **Then, edit this file with your actual settings (BOT TOKEN, TVDB KEY, etc.).**
 
     ```env
@@ -148,13 +162,13 @@ This is the recommended method to install Followarr.
     ```
     *This is a crucial step! Fill in all required variables.* 
 
-4.  **Start Followarr:**
+5.  **Start Followarr:**
     ```bash
     docker compose up -d
     ```
     This will pull the `ghcr.io/d3v1l1989/followarr:edge` image (latest development build) and start the container.
 
-5.  **(Optional) Use a Specific Version:** To use a stable release, edit `docker-compose.yml` (the file you created in Step 2) and change the image tag from `:edge` to a specific version, like `:v1.0.0`, before running `docker compose up -d`.
+6.  **(Optional) Use a Specific Version:** To use a stable release, edit `docker-compose.yml` (the file you created in Step 2) and change the image tag from `:edge` to a specific version, like `:v1.0.0`, before running `docker compose up -d`.
 
 ### ⚙️ Post-Installation Configuration
 

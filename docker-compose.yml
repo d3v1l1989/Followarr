@@ -13,6 +13,7 @@ services:
     ports:
       - "${WEBHOOK_SERVER_PORT:-3000}:3000"
     user: "${UID:-1000}:${GID:-1000}"
+    init: true
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:${WEBHOOK_PORT:-3000}/health"]
       interval: 30s
