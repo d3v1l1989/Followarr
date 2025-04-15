@@ -8,8 +8,8 @@ services:
     env_file:
       - .env
     volumes:
-      - followarr-data:/app/data
-      - followarr-logs:/app/logs
+      - ./data:/app/data
+      - ./logs:/app/logs
     ports:
       - "${WEBHOOK_SERVER_PORT:-3000}:3000"
     user: "${UID:-1000}:${GID:-1000}"
@@ -31,6 +31,4 @@ networks:
   followarr-net:
     driver: bridge
 
-volumes:
-  followarr-data:
-  followarr-logs: 
+# Removed volumes section since we're using bind mounts now 

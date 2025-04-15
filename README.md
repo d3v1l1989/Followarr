@@ -88,9 +88,9 @@ This is the recommended method to install Followarr.
         env_file:
           - .env
         volumes:
-          # Use named volumes to store persistent data
-          - followarr-data:/app/data # Stores database
-          - followarr-logs:/app/logs # Stores log files
+          # Use bind mounts for persistent storage
+          - ./data:/app/data # Stores database
+          - ./logs:/app/logs # Stores log files
         ports:
           # Exposes the webhook port (default 3000)
           - "${WEBHOOK_SERVER_PORT:-3000}:3000" 
@@ -115,11 +115,6 @@ This is the recommended method to install Followarr.
     networks:
       followarr-net:
         driver: bridge # Default bridge network
-
-    # Define the named volumes used by the service
-    volumes:
-      followarr-data:
-      followarr-logs:
     ```
 
 3.  **Create and Configure `.env` File:**

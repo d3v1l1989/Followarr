@@ -511,12 +511,57 @@ class FollowarrBot(commands.Bot):
                     logger.info(f"Found show details for {title} on TVDB")
                     break
             
+            # Get episode details from TVDB
+            episode_details = None
+            if show_details:
+                try:
+                    episodes = await self.tvdb_client.get_episodes(show_details.id)
+                    if episodes:
+                        # Find the matching episode
+                        for ep in episodes:
+                            if ep.get('seasonNumber') == season_num and ep.get('episodeNumber') == episode_num:
+                                episode_details = ep
+                                logger.info(f"Found episode details for S{season_num}E{episode_num}")
+                                break
+                except Exception as e:
+                    logger.error(f"Error fetching episode details from TVDB: {str(e)}")
+                    logger.error(traceback.format_exc())
+            
             # Create embed for notification
             embed = discord.Embed(
                 title=f"New Episode: {show_title}",
                 description=f"Season {season_num} Episode {episode_num}: {episode_title}",
                 color=discord.Color.blue()
             )
+            
+            # Add episode summary if available from TVDB
+            if episode_details and episode_details.get('overview'):
+                embed.add_field(
+                    name="Summary",
+                    value=episode_details['overview'][:1024] + '...' if len(episode_details['overview']) > 1024 else episode_details['overview'],
+                    inline=False
+                )
+            
+            # Add air date if available from TVDB
+            if episode_details and episode_details.get('aired'):
+                try:
+                    air_date = episode_details['aired']
+                    if 'T' in air_date:
+                        # ISO format with time
+                        air_date = air_date.replace('Z', '+00:00')
+                        air_date_obj = datetime.fromisoformat(air_date)
+                    else:
+                        # Date-only format
+                        air_date_obj = datetime.strptime(air_date, "%Y-%m-%d")
+                    
+                    formatted_air_date = air_date_obj.strftime('%B %d, %Y')
+                    embed.add_field(
+                        name="Originally Aired",
+                        value=formatted_air_date,
+                        inline=True
+                    )
+                except (ValueError, TypeError) as e:
+                    logger.error(f"Error formatting air date from TVDB: {str(e)}")
             
             # Add show image if available
             if show_details and show_details.image_url:
