@@ -8,14 +8,6 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-class Subscription:
-    __tablename__ = 'subscriptions'
-    
-    id = Column(Integer, primary_key=True)
-    user_id = Column(String, nullable=False)
-    show_id = Column(Integer, nullable=False)
-    show_name = Column(String, nullable=False)
-
 class Database:
     def __init__(self, database_url: str):
         """Initialize the database connection."""
@@ -35,9 +27,9 @@ class Database:
             'follows',
             self.metadata,
             Column('user_id', String, primary_key=True),
-            Column('show_id', String, primary_key=True),
+            Column('show_id', Integer, primary_key=True),
             Column('show_title', String),
-            Column('plex_id', String)  # Add plex_id column
+            Column('plex_id', String)
         )
         
         # Create async session maker
@@ -55,8 +47,9 @@ class Database:
             db_path.parent.mkdir(parents=True, exist_ok=True)
             
             async with self.engine.begin() as conn:
-                await conn.run_sync(self.metadata.create_all)
-            logger.info("Database tables created successfully")
+                await conn.run_sync(self.metadata.drop_all)  # Drop existing tables
+                await conn.run_sync(self.metadata.create_all)  # Create new tables
+            logger.info("Database tables recreated successfully")
         except Exception as e:
             logger.error(f"Error creating database tables: {str(e)}")
             raise
