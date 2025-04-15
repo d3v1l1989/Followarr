@@ -189,9 +189,9 @@ class FollowarrBot(commands.Bot):
                     color=discord.Color.blue()
                 )
                 
-                for show in shows:
+                for i, show in enumerate(shows, 1):
                     embed.add_field(
-                        name=show['name'],
+                        name=f"{i}. {show['name']}",
                         value="\u200b",  # Zero-width space for empty value
                         inline=False
                     )
@@ -203,7 +203,7 @@ class FollowarrBot(commands.Bot):
                 await interaction.followup.send("An error occurred while processing your request. Please try again later.")
 
         @self.tree.command(name="unfollow", description="Unfollow a TV show")
-        @app_commands.describe(show_name="The name of the show you want to unfollow")
+        @app_commands.describe(show_name="The name or number of the show you want to unfollow")
         async def unfollow(interaction: discord.Interaction, show_name: str):
             """Unfollow a TV show."""
             try:
@@ -219,33 +219,41 @@ class FollowarrBot(commands.Bot):
                 
                 logger.info(f"User {interaction.user.name} follows {len(user_follows)} shows")
                 
-                # Try different variations of the show title
-                title_variations = [
-                    show_name,  # Original title
-                    show_name.split(' (')[0].strip(),  # Remove year
-                    show_name.split(':')[0].strip(),  # Remove subtitle
-                    show_name.replace('&', 'and'),  # Replace & with and
-                    show_name.replace('and', '&'),  # Replace and with &
-                    show_name.replace(':', ''),  # Remove colons
-                    show_name.replace('-', ' '),  # Replace hyphens with spaces
-                    show_name.replace('  ', ' ').strip(),  # Remove double spaces
-                ]
-                
-                # Remove duplicates while preserving order
-                title_variations = list(dict.fromkeys(title_variations))
-                
-                # Find the show (case-insensitive)
+                # Check if the input is a number
                 show_to_unfollow = None
-                for title in title_variations:
-                    if title != show_name:
-                        logger.info(f"Trying fallback title: {title}")
-                    for show in user_follows:
-                        if show['name'].lower() == title.lower():
-                            show_to_unfollow = show
-                            logger.info(f"Found show to unfollow using title: {title}")
+                try:
+                    show_number = int(show_name)
+                    if 1 <= show_number <= len(user_follows):
+                        show_to_unfollow = user_follows[show_number - 1]
+                        logger.info(f"User selected show by number: {show_number} - {show_to_unfollow['name']}")
+                except ValueError:
+                    # Not a number, try title matching
+                    # Try different variations of the show title
+                    title_variations = [
+                        show_name,  # Original title
+                        show_name.split(' (')[0].strip(),  # Remove year
+                        show_name.split(':')[0].strip(),  # Remove subtitle
+                        show_name.replace('&', 'and'),  # Replace & with and
+                        show_name.replace('and', '&'),  # Replace and with &
+                        show_name.replace(':', ''),  # Remove colons
+                        show_name.replace('-', ' '),  # Replace hyphens with spaces
+                        show_name.replace('  ', ' ').strip(),  # Remove double spaces
+                    ]
+                    
+                    # Remove duplicates while preserving order
+                    title_variations = list(dict.fromkeys(title_variations))
+                    
+                    # Find the show (case-insensitive)
+                    for title in title_variations:
+                        if title != show_name:
+                            logger.info(f"Trying fallback title: {title}")
+                        for show in user_follows:
+                            if show['name'].lower() == title.lower():
+                                show_to_unfollow = show
+                                logger.info(f"Found show to unfollow using title: {title}")
+                                break
+                        if show_to_unfollow:
                             break
-                    if show_to_unfollow:
-                        break
                 
                 if not show_to_unfollow:
                     logger.warning(f"User {interaction.user.name} tried to unfollow {show_name} but wasn't following it")
