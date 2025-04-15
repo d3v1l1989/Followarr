@@ -9,9 +9,10 @@ from datetime import datetime, timedelta
 logger = logging.getLogger(__name__)
 
 class PlexClient:
-    def __init__(self, base_url: str, token: str):
+    def __init__(self, base_url: str, token: str, library_section: str = "TV Shows"):
         self.base_url = base_url.rstrip('/')
         self.token = token
+        self.library_section = library_section
         self.plex = PlexServer(base_url, token)
         
     async def get_recently_added_episodes(self, hours: int = 24) -> List[Dict]:
@@ -86,7 +87,7 @@ class PlexClient:
         """
         try:
             # Search all TV shows in the library
-            for show in self.plex.library.section('TV Shows').all():
+            for show in self.plex.library.section(self.library_section).all():
                 if self._get_tvdb_id(show) == tvdb_id:
                     return show
             return None

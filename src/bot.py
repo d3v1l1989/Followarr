@@ -64,6 +64,7 @@ class FollowarrBot(commands.Bot):
         self.tvdb_api_key = os.getenv('TVDB_API_KEY')
         self.plex_url = os.getenv('PLEX_URL')
         self.plex_token = os.getenv('PLEX_TOKEN')
+        self.plex_library_section = os.getenv('PLEX_LIBRARY_SECTION', 'TV Shows')
         
         # Initialize database with proper URL
         db_url = os.getenv('DATABASE_URL', 'sqlite:////app/data/followarr.db')
@@ -73,7 +74,7 @@ class FollowarrBot(commands.Bot):
         
         # Initialize other components
         self.tvdb_client = TVDBClient(self.tvdb_api_key)
-        self.plex_client = PlexClient(self.plex_url, self.plex_token)
+        self.plex_client = PlexClient(self.plex_url, self.plex_token, self.plex_library_section)
         
         # Initialize webhook server
         self.webhook_server = WebhookServer(self.handle_plex_notification)
@@ -128,12 +129,8 @@ class FollowarrBot(commands.Bot):
 
                 logger.info(f"Found show: {show.name} (ID: {show.id})")
                 
-                # Try to find the show in Plex to get its Plex ID
-                plex_show = await self.plex_client.get_show_by_tvdb_id(show.id)
-                plex_id = plex_show.ratingKey if plex_show else None
-                
-                # Add the show to the user's follows
-                await self.db.add_follower(interaction.user.id, show.id, show.name, plex_id)
+                # Add the show to the user's follows without looking up Plex ID
+                await self.db.add_follower(interaction.user.id, show.id, show.name, None)
                 
                 # Create follow confirmation embed
                 embed = discord.Embed(
