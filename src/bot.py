@@ -503,11 +503,13 @@ class FollowarrBot(commands.Bot):
             episode_num = metadata.get('index')
             episode_title = metadata.get('title', f'Episode {episode_num}')
             
-            # Get show poster URL
-            thumb = metadata.get('grandparentThumb', '')
-            if thumb:
-                # Convert relative URL to absolute
-                thumb = f"{self.plex_url}{thumb}?X-Plex-Token={self.plex_token}"
+            # Get show details from TVDB
+            show_details = None
+            for title in title_variations:
+                show_details = await self.tvdb_client.search_show(title)
+                if show_details:
+                    logger.info(f"Found show details for {title} on TVDB")
+                    break
             
             # Create embed for notification
             embed = discord.Embed(
@@ -516,8 +518,14 @@ class FollowarrBot(commands.Bot):
                 color=discord.Color.blue()
             )
             
-            if thumb:
-                embed.set_thumbnail(url=thumb)
+            # Add show image if available
+            if show_details and show_details.image_url:
+                try:
+                    embed.set_thumbnail(url=show_details.image_url)
+                    logger.info(f"Successfully set thumbnail for {show_title} from TVDB")
+                except Exception as e:
+                    logger.error(f"Error setting thumbnail for {show_title}: {str(e)}")
+                    logger.error(traceback.format_exc())
             
             # Send notification to each follower
             for user_id in followers:
