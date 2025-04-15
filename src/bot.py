@@ -519,7 +519,7 @@ class FollowarrBot(commands.Bot):
                     if episodes:
                         # Find the matching episode
                         for ep in episodes:
-                            if ep.get('seasonNumber') == season_num and ep.get('episodeNumber') == episode_num:
+                            if ep.get('seasonNumber') == season_num and ep.get('number') == episode_num:
                                 episode_details = ep
                                 logger.info(f"Found episode details for S{season_num}E{episode_num}")
                                 break
