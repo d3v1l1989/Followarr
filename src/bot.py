@@ -92,10 +92,34 @@ class FollowarrBot(commands.Bot):
             """Follow a TV show to receive notifications."""
             try:
                 logger.info(f"User {interaction.user.name} requested to follow show: {show_name}")
-                # Search for the show using TVDB
-                show = await self.tvdb_client.search_show(show_name)
+                
+                # Try different variations of the show title
+                title_variations = [
+                    show_name,  # Original title
+                    show_name.split(' (')[0].strip(),  # Remove year
+                    show_name.split(':')[0].strip(),  # Remove subtitle
+                    show_name.replace('&', 'and'),  # Replace & with and
+                    show_name.replace('and', '&'),  # Replace and with &
+                    show_name.replace(':', ''),  # Remove colons
+                    show_name.replace('-', ' '),  # Replace hyphens with spaces
+                    show_name.replace('  ', ' ').strip(),  # Remove double spaces
+                ]
+                
+                # Remove duplicates while preserving order
+                title_variations = list(dict.fromkeys(title_variations))
+                
+                # Try each variation until we find a match
+                show = None
+                for title in title_variations:
+                    if title != show_name:
+                        logger.info(f"Trying fallback title: {title}")
+                    show = await self.tvdb_client.search_show(title)
+                    if show:
+                        logger.info(f"Found show using title: {title}")
+                        break
+                
                 if not show:
-                    logger.warning(f"Could not find show: {show_name}")
+                    logger.warning(f"Could not find show with any title variation: {title_variations}")
                     await interaction.response.send_message(
                         f"❌ Could not find show: {show_name}",
                         ephemeral=True
@@ -194,11 +218,33 @@ class FollowarrBot(commands.Bot):
                     return
                 
                 logger.info(f"User {interaction.user.name} follows {len(user_follows)} shows")
+                
+                # Try different variations of the show title
+                title_variations = [
+                    show_name,  # Original title
+                    show_name.split(' (')[0].strip(),  # Remove year
+                    show_name.split(':')[0].strip(),  # Remove subtitle
+                    show_name.replace('&', 'and'),  # Replace & with and
+                    show_name.replace('and', '&'),  # Replace and with &
+                    show_name.replace(':', ''),  # Remove colons
+                    show_name.replace('-', ' '),  # Replace hyphens with spaces
+                    show_name.replace('  ', ' ').strip(),  # Remove double spaces
+                ]
+                
+                # Remove duplicates while preserving order
+                title_variations = list(dict.fromkeys(title_variations))
+                
                 # Find the show (case-insensitive)
                 show_to_unfollow = None
-                for show in user_follows:
-                    if show['show_title'].lower() == show_name.lower():
-                        show_to_unfollow = show
+                for title in title_variations:
+                    if title != show_name:
+                        logger.info(f"Trying fallback title: {title}")
+                    for show in user_follows:
+                        if show['show_title'].lower() == title.lower():
+                            show_to_unfollow = show
+                            logger.info(f"Found show to unfollow using title: {title}")
+                            break
+                    if show_to_unfollow:
                         break
                 
                 if not show_to_unfollow:

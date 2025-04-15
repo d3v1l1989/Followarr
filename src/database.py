@@ -34,10 +34,10 @@ class Database:
         self.follows = Table(
             'follows',
             self.metadata,
-            Column('user_id', Integer, primary_key=True),
-            Column('show_id', Integer, primary_key=True),
-            Column('show_title', String, nullable=False),
-            Column('plex_id', String)  # Add Plex's unique identifier
+            Column('user_id', String, primary_key=True),
+            Column('show_id', String, primary_key=True),
+            Column('show_title', String),
+            Column('plex_id', String)  # Add plex_id column
         )
         
         # Create async session maker
