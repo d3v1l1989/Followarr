@@ -251,7 +251,7 @@ class Database:
             async with session as session:
                 # Get all shows the user follows
                 result = await session.execute(
-                    select(self.follows)
+                    select(self.follows.c.show_title, self.follows.c.show_id)
                     .where(self.follows.c.user_id == user_id)
                 )
                 user_shows = result.all()
