@@ -249,14 +249,44 @@ class Database:
         try:
             session = await self.async_session()
             async with session as session:
-                # Remove follower using case-insensitive matching
-                stmt = self.follows.delete().where(
-                    (self.follows.c.user_id == user_id) &
-                    (self.follows.c.show_title.ilike(show_title))
+                # Get all shows the user follows
+                result = await session.execute(
+                    select(self.follows)
+                    .where(self.follows.c.user_id == user_id)
                 )
-                result = await session.execute(stmt)
-                await session.commit()
-                return result.rowcount > 0
+                user_shows = result.all()
+                
+                # Try to find a matching show using case-insensitive comparison
+                for show in user_shows:
+                    db_title = show.show_title.lower()
+                    search_title = show_title.lower()
+                    
+                    # Try different variations of the title
+                    title_variations = [
+                        db_title,  # Original title
+                        db_title.split(' (')[0].strip(),  # Remove year
+                        db_title.split(':')[0].strip(),  # Remove subtitle
+                        db_title.replace('&', 'and'),  # Replace & with and
+                        db_title.replace('and', '&'),  # Replace and with &
+                        db_title.replace(':', ''),  # Remove colons
+                        db_title.replace('-', ' '),  # Replace hyphens with spaces
+                        db_title.replace('  ', ' ').strip(),  # Remove double spaces
+                    ]
+                    
+                    # Remove duplicates while preserving order
+                    title_variations = list(dict.fromkeys(title_variations))
+                    
+                    if search_title in title_variations:
+                        # Found a match, remove the follower
+                        stmt = self.follows.delete().where(
+                            (self.follows.c.user_id == user_id) &
+                            (self.follows.c.show_id == show.show_id)
+                        )
+                        await session.execute(stmt)
+                        await session.commit()
+                        return True
+                
+                return False
         except Exception as e:
             logger.error(f"Error removing follower: {str(e)}")
             return False
