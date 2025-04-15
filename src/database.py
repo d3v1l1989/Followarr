@@ -36,7 +36,8 @@ class Database:
             self.metadata,
             Column('user_id', Integer, primary_key=True),
             Column('show_id', Integer, primary_key=True),
-            Column('show_title', String, nullable=False)
+            Column('show_title', String, nullable=False),
+            Column('plex_id', String)  # Add Plex's unique identifier
         )
         
         # Create async session maker
@@ -190,10 +191,28 @@ class Database:
             logger.error(f"Error getting show followers: {str(e)}")
             return []
 
-    async def add_follower(self, user_id: int, show_id: int, show_name: str) -> bool:
+    async def get_show_followers_by_plex_id(self, plex_id: str) -> List[int]:
+        """Get all users following a show by its Plex ID."""
+        try:
+            logger.info(f"Looking for followers of show with Plex ID: {plex_id}")
+            session = await self.async_session()
+            async with session as session:
+                # Get all followers for this show using Plex ID
+                result = await session.execute(
+                    select(self.follows.c.user_id)
+                    .where(self.follows.c.plex_id == plex_id)
+                )
+                followers = result.scalars().all()
+                logger.info(f"Found {len(followers)} followers for show with Plex ID: {plex_id}")
+                return followers
+        except Exception as e:
+            logger.error(f"Error getting show followers by Plex ID: {str(e)}")
+            return []
+
+    async def add_follower(self, user_id: int, show_id: int, show_name: str, plex_id: str = None) -> bool:
         """Add a user as a follower of a show."""
         try:
-            logger.info(f"Adding follower {user_id} for show: {show_name} (ID: {show_id})")
+            logger.info(f"Adding follower {user_id} for show: {show_name} (ID: {show_id}, Plex ID: {plex_id})")
             session = await self.async_session()
             async with session as session:
                 # Check if already following using case-insensitive matching
@@ -214,7 +233,8 @@ class Database:
                 stmt = self.follows.insert().values(
                     user_id=user_id,
                     show_id=show_id,
-                    show_title=show_name
+                    show_title=show_name,
+                    plex_id=plex_id
                 )
                 await session.execute(stmt)
                 await session.commit()

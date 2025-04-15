@@ -103,8 +103,13 @@ class FollowarrBot(commands.Bot):
                     return
 
                 logger.info(f"Found show: {show.name} (ID: {show.id})")
+                
+                # Try to find the show in Plex to get its Plex ID
+                plex_show = await self.plex_client.get_show_by_tvdb_id(show.id)
+                plex_id = plex_show.ratingKey if plex_show else None
+                
                 # Add the show to the user's follows
-                await self.db.add_follower(interaction.user.id, show.id, show.name)
+                await self.db.add_follower(interaction.user.id, show.id, show.name, plex_id)
                 
                 # Create follow confirmation embed
                 embed = discord.Embed(
@@ -398,18 +403,52 @@ class FollowarrBot(commands.Bot):
                 logger.info("Ignoring non-episode content")
                 return
             
-            # Get show title and episode info
+            # Get show identifiers
             show_title = metadata.get('grandparentTitle')
+            show_rating_key = metadata.get('grandparentRatingKey')
+            show_guid = metadata.get('grandparentGuid')
+            
             if not show_title:
                 logger.error("No show title found in metadata")
                 return
                 
-            logger.info(f"Processing new episode for show: {show_title}")
+            logger.info(f"Processing new episode for show: {show_title} (RatingKey: {show_rating_key}, GUID: {show_guid})")
             
-            # Get followers for this show
-            followers = await self.db.get_show_followers(show_title)
+            # First try to find followers using Plex's unique identifiers
+            followers = []
+            if show_rating_key:
+                followers = await self.db.get_show_followers_by_plex_id(show_rating_key)
+                if followers:
+                    logger.info(f"Found {len(followers)} followers using Plex RatingKey: {show_rating_key}")
+            
+            # If no followers found by Plex ID, try title variations
             if not followers:
-                logger.info(f"No followers found for show: {show_title}")
+                # Try different variations of the show title to find followers
+                title_variations = [
+                    show_title,  # Original title
+                    show_title.split(' (')[0].strip(),  # Remove year
+                    show_title.split(':')[0].strip(),  # Remove subtitle
+                    show_title.replace('&', 'and'),  # Replace & with and
+                    show_title.replace('and', '&'),  # Replace and with &
+                    show_title.replace(':', ''),  # Remove colons
+                    show_title.replace('-', ' '),  # Replace hyphens with spaces
+                    show_title.replace('  ', ' ').strip(),  # Remove double spaces
+                ]
+                
+                # Remove duplicates while preserving order
+                title_variations = list(dict.fromkeys(title_variations))
+                
+                for title in title_variations:
+                    if title != show_title:
+                        logger.info(f"Trying fallback title: {title}")
+                    temp_followers = await self.db.get_show_followers(title)
+                    if temp_followers:
+                        followers = temp_followers
+                        logger.info(f"Found {len(followers)} followers using title: {title}")
+                        break
+            
+            if not followers:
+                logger.info(f"No followers found for show with any identifier or title variation")
                 return
                 
             logger.info(f"Found {len(followers)} followers for {show_title}")
