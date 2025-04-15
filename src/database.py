@@ -47,9 +47,9 @@ class Database:
             db_path.parent.mkdir(parents=True, exist_ok=True)
             
             async with self.engine.begin() as conn:
-                await conn.run_sync(self.metadata.drop_all)  # Drop existing tables
-                await conn.run_sync(self.metadata.create_all)  # Create new tables
-            logger.info("Database tables recreated successfully")
+                # Only create tables if they don't exist
+                await conn.run_sync(self.metadata.create_all)
+            logger.info("Database tables initialized successfully")
         except Exception as e:
             logger.error(f"Error creating database tables: {str(e)}")
             raise
