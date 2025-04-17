@@ -199,14 +199,26 @@ class TVDBClient:
             if '-' in show_id:
                 clean_show_id = show_id.split('-')[-1]
             
-            data = await self._make_request("GET", f"series/{clean_show_id}/extended")
-            if not data:
+            # First try to get basic show info
+            basic_data = await self._make_request("GET", f"series/{clean_show_id}")
+            if not basic_data or not basic_data.get('data'):
+                logger.warning(f"Could not get basic show info for ID: {clean_show_id}")
                 return None
-                
-            show = data.get('data', {})
-            if not show:
-                return None
-                
+            
+            # Then try to get extended info
+            try:
+                extended_data = await self._make_request("GET", f"series/{clean_show_id}/extended")
+                if not extended_data or not extended_data.get('data'):
+                    logger.warning(f"Could not get extended show info for ID: {clean_show_id}")
+                    # Use basic data if extended data is not available
+                    show = basic_data['data']
+                else:
+                    show = extended_data['data']
+            except Exception as e:
+                logger.warning(f"Error getting extended show info for ID: {clean_show_id}: {str(e)}")
+                # Fall back to basic data
+                show = basic_data['data']
+            
             # Get the primary image URL
             image_url = None
             if show.get('image'):

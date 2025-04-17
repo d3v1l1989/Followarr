@@ -328,18 +328,24 @@ class FollowarrBot(commands.Bot):
                     color=discord.Color.blue()
                 )
                 
+                # Track shows with and without upcoming episodes
+                shows_with_episodes = 0
+                shows_without_episodes = []
+                
                 # Get upcoming episodes for each show
                 for show in shows:
                     try:
                         show_details = await self.tvdb_client.get_show_details(show['show_id'])
                         if not show_details:
                             logger.warning(f"Could not get show details for {show['show_title']}")
+                            shows_without_episodes.append(show['show_title'])
                             continue
                             
                         # Get next episode
                         next_episode = show_details.get('nextAiredEpisode')
                         if not next_episode:
                             logger.info(f"No upcoming episodes found for {show['show_title']}")
+                            shows_without_episodes.append(show['show_title'])
                             continue
                             
                         # Format episode info
@@ -356,11 +362,25 @@ class FollowarrBot(commands.Bot):
                             value=episode_info,
                             inline=False
                         )
+                        shows_with_episodes += 1
                         
                     except Exception as e:
                         logger.error(f"Error getting episodes for {show['show_title']}: {str(e)}")
                         logger.error(traceback.format_exc())
+                        shows_without_episodes.append(show['show_title'])
                         continue
+                
+                # Add footer with summary
+                if shows_without_episodes:
+                    embed.set_footer(text=f"Shows with no upcoming episodes: {', '.join(shows_without_episodes)}")
+                
+                # If no shows have upcoming episodes, send a different message
+                if shows_with_episodes == 0:
+                    await interaction.response.send_message(
+                        f"No upcoming episodes found for your followed shows: {', '.join(shows_without_episodes)}",
+                        ephemeral=True
+                    )
+                    return
                 
                 # Send the embed
                 await interaction.response.send_message(embed=embed)
