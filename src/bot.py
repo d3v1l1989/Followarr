@@ -16,6 +16,7 @@ from datetime import datetime, timedelta, timezone
 import calendar
 from collections import defaultdict
 from typing import Dict, Any
+from src.tvdb_client import TVShow
 
 # Load env vars and setup logging
 load_dotenv()
@@ -473,11 +474,12 @@ class FollowarrBot(commands.Bot):
                             logger.warning(f"No show ID found for next episode: {show_title}")
                         else:
                             logger.info(f"Fetching show details for ID: {show_id}")
-                            show_details = await self.tvdb_client.get_show_details(show_id)
-                            if not show_details:
+                            show_data = await self.tvdb_client.get_show_details(show_id)
+                            if not show_data:
                                 logger.warning(f"Could not get show details for ID: {show_id}")
                             else:
                                 logger.info(f"Successfully fetched show details for {show_title}")
+                                show_details = TVShow.from_api_response(show_data)
                         
                         next_ep_text = (
                             f"**{show_title}**\n"
