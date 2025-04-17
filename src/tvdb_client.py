@@ -366,7 +366,7 @@ class TVDBClient:
                 return []
             
             # Filter for upcoming episodes
-            now = datetime.now().replace(tzinfo=timezone.utc)  # Make naive datetime timezone-aware
+            now = datetime.now(timezone.utc)  # Make sure now is timezone-aware
             upcoming_episodes = []
             
             for episode in episodes:
@@ -378,6 +378,9 @@ class TVDBClient:
                 try:
                     # Try parsing as ISO format with timezone
                     air_date = datetime.fromisoformat(episode['aired'].replace('Z', '+00:00'))
+                    if air_date.tzinfo is None:
+                        # If the parsed datetime is naive, make it timezone-aware
+                        air_date = air_date.replace(tzinfo=timezone.utc)
                 except ValueError:
                     try:
                         # Try parsing as date-only format and make it timezone-aware

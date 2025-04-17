@@ -1,0 +1,5 @@
+[33mf9771fb[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m fix: Remove unnecessary plex_id column access in remove_follower method
+[33m243367d[m feat: Add numbered list and number-based unfollowing to /list and /unfollow commands
+[33m59cf155[m Fix unfollow command to properly handle show titles and IDs
+[33m562d07b[m Improve unfollow command with case-insensitive title matching and variations
+[33m84c6d68[m Add plex_id column to follows table and update database schema
