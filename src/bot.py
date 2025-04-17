@@ -320,6 +320,9 @@ class FollowarrBot(commands.Bot):
                         ephemeral=True
                     )
                     return
+
+                # Acknowledge the interaction first
+                await interaction.response.defer()
                 
                 # Create embed for calendar
                 embed = discord.Embed(
@@ -349,7 +352,7 @@ class FollowarrBot(commands.Bot):
                         episode_info = ""
                         for episode in upcoming_episodes[:5]:  # Show up to 5 upcoming episodes
                             season_num = episode.get('seasonNumber', '?')
-                            episode_num = episode.get('episodeNumber', '?')
+                            episode_num = episode.get('number', '?')  # Changed from episodeNumber to number based on API response
                             episode_title = episode.get('name', f'Episode {episode_num}')
                             air_date = episode.get('aired', 'TBA')
                             
@@ -387,22 +390,31 @@ class FollowarrBot(commands.Bot):
                 
                 # If no shows have upcoming episodes, send a different message
                 if shows_with_episodes == 0:
-                    await interaction.response.send_message(
+                    await interaction.followup.send(
                         f"No upcoming episodes found for your followed shows: {', '.join(shows_without_episodes)}",
                         ephemeral=True
                     )
                     return
                 
                 # Send the embed
-                await interaction.response.send_message(embed=embed)
+                await interaction.followup.send(embed=embed)
                 
             except Exception as e:
                 logger.error(f"Error in calendar command: {str(e)}")
                 logger.error(traceback.format_exc())
-                await interaction.response.send_message(
-                    "An error occurred while processing your request. Please try again later.",
-                    ephemeral=True
-                )
+                try:
+                    if not interaction.response.is_done():
+                        await interaction.response.send_message(
+                            "An error occurred while processing your request. Please try again later.",
+                            ephemeral=True
+                        )
+                    else:
+                        await interaction.followup.send(
+                            "An error occurred while processing your request. Please try again later.",
+                            ephemeral=True
+                        )
+                except Exception as e2:
+                    logger.error(f"Error sending error message: {str(e2)}")
 
     async def setup_hook(self):
         """Setup hook that runs after the bot is ready."""
