@@ -112,7 +112,7 @@ class Database:
                 )
                 shows = result.all()
                 logger.info(f"User {user_id} follows {len(shows)} shows: {[show.show_title for show in shows]}")
-                return [{'name': show.show_title, 'show_id': show.show_id} for show in shows]
+                return [{'show_title': show.show_title, 'show_id': str(show.show_id)} for show in shows]
         except Exception as e:
             logger.error(f"Error getting user subscriptions: {str(e)}")
             return []
