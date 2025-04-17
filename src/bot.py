@@ -188,7 +188,7 @@ class FollowarrBot(commands.Bot):
                 
                 for i, show in enumerate(shows, 1):
                     embed.add_field(
-                        name=f"{i}. {show['name']}",
+                        name=f"{i}. {show['show_title']}",
                         value="\u200b",  # Zero-width space for empty value
                         inline=False
                     )
