@@ -195,9 +195,9 @@ class TVDBClient:
         """Get detailed information about a TV show."""
         try:
             # Strip any prefix from the show ID (e.g., 'series-', 'movie-')
-            clean_show_id = show_id
-            if '-' in show_id:
-                clean_show_id = show_id.split('-')[-1]
+            clean_show_id = str(show_id)  # Convert to string first
+            if '-' in clean_show_id:
+                clean_show_id = clean_show_id.split('-')[-1]
             
             # First try to get basic show info
             basic_data = await self._make_request("GET", f"series/{clean_show_id}")
@@ -244,6 +244,7 @@ class TVDBClient:
             
         except Exception as e:
             logger.error(f"Error getting show details: {str(e)}")
+            logger.error(traceback.format_exc())
             return None
 
     async def get_episode_details(self, episode_id: int) -> Optional[Dict[str, Any]]:
