@@ -467,7 +467,16 @@ class FollowarrBot(commands.Bot):
                         episode_title = next_ep.get('name', f'Episode {episode_num}')
                         
                         # Get show details for the image
-                        show_details = await self.tvdb_client.get_show_details(next_ep.get('show_id'))
+                        show_id = next_ep.get('show_id')
+                        if not show_id:
+                            logger.warning(f"No show ID found for next episode: {show_title}")
+                        else:
+                            logger.info(f"Fetching show details for ID: {show_id}")
+                            show_details = await self.tvdb_client.get_show_details(show_id)
+                            if not show_details:
+                                logger.warning(f"Could not get show details for ID: {show_id}")
+                            else:
+                                logger.info(f"Successfully fetched show details for {show_title}")
                         
                         next_ep_text = (
                             f"**{show_title}**\n"
@@ -484,18 +493,16 @@ class FollowarrBot(commands.Bot):
                         )
                         
                         # Add show image if available
-                        if show_details and show_details.get('image'):
+                        if show_details and show_details.image_url:
                             try:
-                                # Ensure the URL is valid
-                                if show_details['image'].startswith('http'):
-                                    logger.info(f"Setting thumbnail for {show_title} with URL: {show_details['image']}")
-                                    summary_embed.set_thumbnail(url=show_details['image'])
-                                    logger.info(f"Successfully set thumbnail for {show_title}")
-                                else:
-                                    logger.warning(f"Invalid image URL for {show_title}: {show_details['image']}")
+                                logger.info(f"Setting thumbnail for {show_title} with URL: {show_details.image_url}")
+                                summary_embed.set_thumbnail(url=show_details.image_url)
+                                logger.info(f"Successfully set thumbnail for {show_title}")
                             except Exception as e:
                                 logger.error(f"Error setting thumbnail for {show_title}: {str(e)}")
                                 logger.error(traceback.format_exc())
+                        else:
+                            logger.warning(f"No image available for {show_title}")
                         
                     except (ValueError, TypeError) as e:
                         logger.error(f"Error processing next episode details: {str(e)}")
