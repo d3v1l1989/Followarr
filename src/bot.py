@@ -467,7 +467,7 @@ class FollowarrBot(commands.Bot):
                         episode_title = next_ep.get('name', f'Episode {episode_num}')
                         
                         # Get show details for the image
-                        show_id = next_ep.get('show_id')
+                        show_id = next_ep.get('seriesId')
                         show_details = None
                         if not show_id:
                             logger.warning(f"No show ID found for next episode: {show_title}")
