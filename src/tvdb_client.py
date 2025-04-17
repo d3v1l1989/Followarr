@@ -194,7 +194,12 @@ class TVDBClient:
     async def get_show_details(self, show_id: str) -> Optional[Dict[str, Any]]:
         """Get detailed information about a TV show."""
         try:
-            data = await self._make_request("GET", f"series/{show_id}/extended")
+            # Strip any prefix from the show ID (e.g., 'series-', 'movie-')
+            clean_show_id = show_id
+            if '-' in show_id:
+                clean_show_id = show_id.split('-')[-1]
+            
+            data = await self._make_request("GET", f"series/{clean_show_id}/extended")
             if not data:
                 return None
                 
