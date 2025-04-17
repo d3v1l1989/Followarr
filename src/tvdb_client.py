@@ -353,49 +353,46 @@ class TVDBClient:
             return []
 
     async def get_upcoming_episodes(self, series_id: str) -> List[Dict]:
-        """Get upcoming episodes for a series within the next 3 months."""
+        """Get upcoming episodes for a series."""
         try:
-            # Get all episodes for the series
-            episodes = await self.get_episodes(series_id)
+            # Strip any prefix from the series ID
+            clean_series_id = series_id
+            if '-' in series_id:
+                clean_series_id = series_id.split('-')[-1]
+            
+            # Get all episodes
+            episodes = await self.get_episodes(clean_series_id)
             if not episodes:
-                logger.error(f"No episodes found for series {series_id}")
                 return []
-
+            
+            # Filter for upcoming episodes
             now = datetime.now(timezone.utc)
-            three_months_later = now + timedelta(days=90)
             upcoming_episodes = []
-
+            
             for episode in episodes:
-                try:
-                    # TVDB API v4 uses 'aired' instead of 'air_date'
-                    air_date_str = episode.get('aired')
-                    if not air_date_str:
-                        continue
-
-                    # Handle different date formats
-                    if 'T' in air_date_str:
-                        # ISO format with time
-                        air_date_str = air_date_str.replace('Z', '+00:00')
-                        air_date = datetime.fromisoformat(air_date_str)
-                    else:
-                        # Date-only format
-                        air_date = datetime.strptime(air_date_str, "%Y-%m-%d")
-                        air_date = air_date.replace(tzinfo=timezone.utc)
-
-                    # Check if episode is in the future and within 3 months
-                    if now < air_date <= three_months_later:
-                        upcoming_episodes.append(episode)
-
-                except (ValueError, TypeError) as e:
-                    logger.error(f"Error processing episode date for series {series_id}: {e}")
+                # Skip episodes without air date
+                if not episode.get('aired'):
                     continue
-
-            # Sort episodes by air date
+                
+                # Parse air date
+                try:
+                    air_date = datetime.fromisoformat(episode['aired'].replace('Z', '+00:00'))
+                except ValueError:
+                    try:
+                        air_date = datetime.strptime(episode['aired'], '%Y-%m-%d')
+                        air_date = air_date.replace(tzinfo=timezone.utc)
+                    except ValueError:
+                        continue
+                
+                # Only include episodes that haven't aired yet
+                if air_date > now:
+                    upcoming_episodes.append(episode)
+            
+            # Sort by air date
             upcoming_episodes.sort(key=lambda x: x.get('aired', ''))
             
-            logger.info(f"Found {len(upcoming_episodes)} upcoming episodes for series {series_id}")
             return upcoming_episodes
-
+            
         except Exception as e:
-            logger.error(f"Error getting upcoming episodes for series {series_id}: {str(e)}")
+            logger.error(f"Error getting upcoming episodes: {str(e)}")
             return [] 

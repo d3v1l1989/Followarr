@@ -335,26 +335,37 @@ class FollowarrBot(commands.Bot):
                 # Get upcoming episodes for each show
                 for show in shows:
                     try:
-                        show_details = await self.tvdb_client.get_show_details(show['show_id'])
-                        if not show_details:
-                            logger.warning(f"Could not get show details for {show['show_title']}")
-                            shows_without_episodes.append(show['show_title'])
-                            continue
-                            
-                        # Get next episode
-                        next_episode = show_details.get('nextAiredEpisode')
-                        if not next_episode:
+                        # Get upcoming episodes
+                        upcoming_episodes = await self.tvdb_client.get_upcoming_episodes(show['show_id'])
+                        if not upcoming_episodes:
                             logger.info(f"No upcoming episodes found for {show['show_title']}")
                             shows_without_episodes.append(show['show_title'])
                             continue
-                            
-                        # Format episode info
-                        episode_info = f"**S{next_episode['seasonNumber']}E{next_episode['episodeNumber']}** - {next_episode['episodeName']}\n"
-                        episode_info += f"📅 {next_episode['firstAired']}\n"
                         
-                        if next_episode.get('overview'):
-                            overview = next_episode['overview'][:100] + '...' if len(next_episode['overview']) > 100 else next_episode['overview']
-                            episode_info += f"📝 {overview}\n"
+                        # Get show details for the image
+                        show_details = await self.tvdb_client.get_show_details(show['show_id'])
+                        
+                        # Format episode info
+                        episode_info = ""
+                        for episode in upcoming_episodes[:5]:  # Show up to 5 upcoming episodes
+                            season_num = episode.get('seasonNumber', '?')
+                            episode_num = episode.get('episodeNumber', '?')
+                            episode_title = episode.get('name', f'Episode {episode_num}')
+                            air_date = episode.get('aired', 'TBA')
+                            
+                            # Format the air date
+                            try:
+                                if 'T' in air_date:
+                                    air_date = air_date.replace('Z', '+00:00')
+                                    air_date_obj = datetime.fromisoformat(air_date)
+                                else:
+                                    air_date_obj = datetime.strptime(air_date, "%Y-%m-%d")
+                                air_date = air_date_obj.strftime('%B %d, %Y')
+                            except (ValueError, TypeError):
+                                pass
+                            
+                            episode_info += f"**S{season_num}E{episode_num}** - {episode_title}\n"
+                            episode_info += f"📅 {air_date}\n\n"
                         
                         # Add to embed
                         embed.add_field(
