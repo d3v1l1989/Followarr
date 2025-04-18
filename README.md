@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[<img src="https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/followarr.png" alt="Followarr Logo" width="300"/>](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/followarr.png)
+[Followarr Logo](docs/screenshots/followarr.png)
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![Discord](https://img.shields.io/badge/Discord-Bot-7289DA.svg)
@@ -260,27 +260,27 @@ The bot requires several environment variables to be set in the `.env` file:
 Here are some screenshots of the bot in action:
 
 ### Calendar Command
-[<img src="https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/calendar.png" alt="Calendar Command" width="300"/>](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/calendar.png)
+[Calendar Command](docs/screenshots/calendar.png)
 
 _View upcoming episodes for your followed shows_
 
 ### Follow Command
-[<img src="https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/follow.png" alt="Follow Command" width="450"/>](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/follow.png)
+[Follow Command](docs/screenshots/follow.png)
 
 _Follow a new TV show_
 
 ### Unfollow Command
-[<img src="https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/unfollow.png" alt="Unfollow Command" width="450"/>](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/unfollow.png)
+[Unfollow Command](docs/screenshots/unfollow.png)
 
 _Unfollow a TV show_
 
 ### List Command
-[<img src="https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/list.png" alt="List Command" width="300"/>](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/list.png)
+[List Command](docs/screenshots/list.png)
 
 _View all your followed shows_
 
 ### Episode Notification
-[<img src="https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/notification.png" alt="Episode Notification" width="450"/>](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/notification.png)
+[Episode Notification](docs/screenshots/notification.png)
 
 _Receive notifications for new episodes_
 
