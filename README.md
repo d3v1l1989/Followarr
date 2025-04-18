@@ -256,6 +256,8 @@ The bot requires several environment variables to be set in the `.env` file:
 
 ## Screenshots
 
+[View all screenshots](docs/screenshots)
+
 Here are some screenshots of the bot in action:
 
 ### Calendar Command
