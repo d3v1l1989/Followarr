@@ -1,8 +1,7 @@
 # 📺 Followarr
 
 <div align="center">
-
-[Followarr Logo](docs/screenshots/followarr.png)
+<img src="docs/screenshots/followarr.png" alt="Followarr Logo" width="300"/>
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![Discord](https://img.shields.io/badge/Discord-Bot-7289DA.svg)
