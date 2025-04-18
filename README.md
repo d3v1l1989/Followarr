@@ -1,7 +1,8 @@
 # 📺 Followarr
 
 <div align="center">
-<img src="docs/screenshots/followarr.png" alt="Followarr Logo" width="300"/>
+
+[<img src="https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/followarr.png" alt="Followarr Logo" width="300"/>](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/followarr.png)
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)
 ![Discord](https://img.shields.io/badge/Discord-Bot-7289DA.svg)
@@ -259,52 +260,31 @@ The bot requires several environment variables to be set in the `.env` file:
 Here are some screenshots of the bot in action:
 
 ### Calendar Command
-<img src="docs/screenshots/calendar.png" alt="Calendar Command" width="300"/>
+[<img src="https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/calendar.png" alt="Calendar Command" width="300"/>](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/calendar.png)
 
 _View upcoming episodes for your followed shows_
 
 ### Follow Command
-<img src="docs/screenshots/follow.png" alt="Follow Command" width="450"/>
+[<img src="https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/follow.png" alt="Follow Command" width="450"/>](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/follow.png)
 
 _Follow a new TV show_
 
 ### Unfollow Command
-<img src="docs/screenshots/unfollow.png" alt="Unfollow Command" width="450"/>
+[<img src="https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/unfollow.png" alt="Unfollow Command" width="450"/>](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/unfollow.png)
 
 _Unfollow a TV show_
 
 ### List Command
-<img src="docs/screenshots/list.png" alt="List Command" width="300"/>
+[<img src="https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/list.png" alt="List Command" width="300"/>](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/list.png)
 
 _View all your followed shows_
 
 ### Episode Notification
-<img src="docs/screenshots/notification.png" alt="Episode Notification" width="450"/>
+[<img src="https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/notification.png" alt="Episode Notification" width="450"/>](https://raw.githubusercontent.com/d3v1l1989/Followarr/main/docs/screenshots/notification.png)
 
 _Receive notifications for new episodes_
 
 ## 👨‍💻 Development
-
-### 🚀 Release Process (for Maintainers)
-
-Followarr uses GitHub Actions to automatically build and publish Docker images to GitHub Container Registry (ghcr.io).
-
-1. **Push to `main` branch:** Automatically builds and pushes the `ghcr.io/d3v1l1989/followarr:edge` image.
-2. **Create and push a Git tag (e.g., `v1.0.1`):**
-   ```bash
-   git tag -a v1.0.1 -m "Release v1.0.1"
-   git push origin v1.0.1
-   ```
-   This automatically builds and pushes the versioned image `ghcr.io/d3v1l1989/followarr:v1.0.1`.
-
-Users can pull specific versions by changing the image tag in their `docker-compose.yml` (e.g., `ghcr.io/d3v1l1989/followarr:v1.0.1`).
-
-### 🔄 Versioning
-
-Followarr uses semantic versioning (MAJOR.MINOR.PATCH):
-- MAJOR: Breaking changes
-- MINOR: New features, backward compatible
-- PATCH: Bug fixes, backward compatible
 
 ## 📸 Image Credits
 
