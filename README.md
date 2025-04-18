@@ -256,22 +256,32 @@ The bot requires several environment variables to be set in the `.env` file:
 
 ## Screenshots
 
-View all screenshots in the [screenshots directory](docs/screenshots/).
+Here are some screenshots of the bot in action:
 
 ### Calendar Command
-[View Calendar Command Screenshot](docs/screenshots/calendar.png)
+<img src="docs/screenshots/calendar.png" alt="Calendar Command" width="300"/>
+
+_View upcoming episodes for your followed shows_
 
 ### Follow Command
-[View Follow Command Screenshot](docs/screenshots/follow.png)
+<img src="docs/screenshots/follow.png" alt="Follow Command" width="450"/>
+
+_Follow a new TV show_
 
 ### Unfollow Command
-[View Unfollow Command Screenshot](docs/screenshots/unfollow.png)
+<img src="docs/screenshots/unfollow.png" alt="Unfollow Command" width="450"/>
+
+_Unfollow a TV show_
 
 ### List Command
-[View List Command Screenshot](docs/screenshots/list.png)
+<img src="docs/screenshots/list.png" alt="List Command" width="300"/>
+
+_View all your followed shows_
 
 ### Episode Notification
-[View Episode Notification Screenshot](docs/screenshots/notification.png)
+<img src="docs/screenshots/notification.png" alt="Episode Notification" width="450"/>
+
+_Receive notifications for new episodes_
 
 ## 👨‍💻 Development
 
