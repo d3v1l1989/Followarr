@@ -388,6 +388,20 @@ class TVDBClient:
                     if not page_episodes:
                         logger.info(f"No more episodes found for series {series_id} on page {page}")
                         break
+
+                    # Process each episode to prefer English translations
+                    for episode in page_episodes:
+                        # Get English translation if available
+                        if "translations" in episode:
+                            for translation in episode["translations"]:
+                                if translation.get("language") == "eng":
+                                    # Prefer English title and overview
+                                    if translation.get("name"):
+                                        episode["name"] = translation["name"]
+                                    if translation.get("overview"):
+                                        episode["overview"] = translation["overview"]
+                                    break
+
                     episodes.extend(page_episodes)
                     
                     # Check if there are more pages
