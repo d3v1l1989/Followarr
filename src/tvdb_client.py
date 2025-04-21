@@ -37,11 +37,17 @@ class TVShow:
     original_network: Optional[Dict[str, Any]] = None
     year: Optional[str] = None
     remote_ids: Optional[List[Dict[str, Any]]] = None
+    english_name: Optional[str] = None
 
     def __post_init__(self):
         # Handle TVDB v4 ID format (e.g., 'series-75978')
         if isinstance(self.id, str) and self.id.startswith('series-'):
             self.id = int(self.id.replace('series-', ''))
+        
+        # Use English name if available
+        if self.english_name:
+            self.name = self.english_name
+            logger.info(f"Using English name: {self.name}")
         
         # Prioritize direct image URL if available
         if not self.image_url and self.image:
@@ -63,6 +69,7 @@ class TVShow:
         show_data = {
             'id': data.get('id'),
             'name': data.get('name'),
+            'english_name': data.get('english_name'),
             'overview': data.get('overview'),
             'status': data.get('status'),
             'first_aired': data.get('firstAired'),
@@ -169,6 +176,7 @@ class TVDBClient:
             if show_details:
                 # Update the show name with English title if available
                 show_data['name'] = show_details.get('english_name', show_data.get('name'))
+                logger.info(f"Using English title: {show_data['name']}")
             
             # Log poster/image information
             if 'image' in show_data:
@@ -245,6 +253,7 @@ class TVDBClient:
                 for translation in show['translations']:
                     if translation.get('language') == 'eng':
                         english_title = translation.get('name', english_title)
+                        logger.info(f"Found English title: {english_title}")
                         break
             
             return {
@@ -252,9 +261,11 @@ class TVDBClient:
                 'name': show.get('name'),
                 'english_name': english_title,
                 'overview': show.get('overview'),
-                'status': show.get('status', {}).get('name'),
+                'status': show.get('status'),
+                'first_aired': show.get('firstAired'),
+                'network': show.get('network'),
                 'image': image_url,
-                'nextAiredEpisode': show.get('nextAiredEpisode')
+                'image_url': image_url
             }
             
         except Exception as e:
