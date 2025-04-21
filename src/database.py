@@ -134,16 +134,17 @@ class Database:
         finally:
             session.close()
 
-    def is_user_subscribed(self, user_id: str, show_id: int) -> bool:
+    async def is_user_subscribed(self, user_id: str, show_id: int) -> bool:
         """Check if a user is subscribed to a show"""
-        session = self.Session()
-        try:
-            return session.query(Subscription).filter_by(
-                user_id=str(user_id),
-                show_id=show_id
-            ).first() is not None
-        finally:
-            session.close()
+        async with self.async_session() as session:
+            query = select(self.follows).where(
+                and_(
+                    self.follows.c.user_id == int(user_id),
+                    self.follows.c.show_id == show_id
+                )
+            )
+            result = await session.execute(query)
+            return result.first() is not None
 
     def get_users_by_show(self, show_name: str) -> List[Dict]:
         """Get all users who follow a specific show."""

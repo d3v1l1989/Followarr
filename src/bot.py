@@ -131,6 +131,15 @@ class FollowarrBot(commands.Bot):
 
                 logger.info(f"Found show: {show.name} (ID: {show.id})")
                 
+                # Check if user is already following this show
+                is_following = await self.db.is_user_subscribed(str(interaction.user.id), show.id)
+                if is_following:
+                    await interaction.response.send_message(
+                        f"❌ You are already following: **{show.name}**",
+                        ephemeral=True
+                    )
+                    return
+                
                 # Add the show to the user's follows without looking up Plex ID
                 await self.db.add_follower(
                     user_id=interaction.user.id,
