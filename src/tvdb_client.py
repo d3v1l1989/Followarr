@@ -199,15 +199,15 @@ class TVDBClient:
             if '-' in clean_show_id:
                 clean_show_id = clean_show_id.split('-')[-1]
             
-            # First try to get basic show info
-            basic_data = await self._make_request("GET", f"series/{clean_show_id}")
+            # First try to get basic show info with translations
+            basic_data = await self._make_request("GET", f"series/{clean_show_id}?include=translations")
             if not basic_data or not basic_data.get('data'):
                 logger.warning(f"Could not get basic show info for ID: {clean_show_id}")
                 return None
             
             # Then try to get extended info
             try:
-                extended_data = await self._make_request("GET", f"series/{clean_show_id}/extended")
+                extended_data = await self._make_request("GET", f"series/{clean_show_id}/extended?include=translations")
                 if not extended_data or not extended_data.get('data'):
                     logger.warning(f"Could not get extended show info for ID: {clean_show_id}")
                     # Use basic data if extended data is not available
@@ -233,9 +233,18 @@ class TVDBClient:
             if image_url and not image_url.startswith('http'):
                 image_url = f"https://artworks.thetvdb.com{image_url}"
             
+            # Get English title from translations if available
+            english_title = show.get('name')
+            if show.get('translations'):
+                for translation in show['translations']:
+                    if translation.get('language') == 'eng':
+                        english_title = translation.get('name', english_title)
+                        break
+            
             return {
                 'id': show.get('id'),
                 'name': show.get('name'),
+                'english_name': english_title,
                 'overview': show.get('overview'),
                 'status': show.get('status', {}).get('name'),
                 'image': image_url,

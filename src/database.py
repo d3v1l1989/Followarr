@@ -1,10 +1,11 @@
-from sqlalchemy import Column, Integer, String, select, MetaData, Table
+from sqlalchemy import Column, Integer, String, select, MetaData, Table, and_, or_
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 import os
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import logging
 from pathlib import Path
+from src.guid_parser import GUIDParser
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +23,18 @@ class Database:
         )
         self.metadata = MetaData()
         
-        # Define the follows table
+        # Define the follows table with additional GUID fields
         self.follows = Table(
             'follows',
             self.metadata,
-            Column('user_id', String, primary_key=True),
-            Column('show_id', Integer, primary_key=True),
-            Column('show_title', String),
-            Column('plex_id', String)
+            Column('user_id', Integer, primary_key=True),
+            Column('show_title', String, primary_key=True),
+            Column('plex_id', String),  # Plex's rating key
+            Column('tvdb_id', Integer),  # TVDB ID if available
+            Column('tmdb_id', Integer),  # TMDB ID if available
+            Column('imdb_id', String),   # IMDb ID if available
+            Column('guid', String),       # Original Plex GUID
+            Column('show_id', Integer, primary_key=True)
         )
         
         # Create async session maker
@@ -202,40 +207,29 @@ class Database:
             logger.error(f"Error getting show followers by Plex ID: {str(e)}")
             return []
 
-    async def add_follower(self, user_id: int, show_id: int, show_name: str, plex_id: str = None) -> bool:
-        """Add a user as a follower of a show."""
+    async def add_follower(self, user_id: int, show_title: str, plex_id: Optional[str] = None, 
+                          tvdb_id: Optional[int] = None, tmdb_id: Optional[int] = None, 
+                          imdb_id: Optional[str] = None, guid: Optional[str] = None):
+        """Add a new show follower with GUID information."""
         try:
-            logger.info(f"Adding follower {user_id} for show: {show_name} (ID: {show_id}, Plex ID: {plex_id})")
             session = await self.async_session()
             async with session as session:
-                # Check if already following using case-insensitive matching
-                result = await session.execute(
-                    select(self.follows)
-                    .where(
-                        (self.follows.c.user_id == user_id) &
-                        (self.follows.c.show_id == show_id)
+                await session.execute(
+                    self.follows.insert().values(
+                        user_id=user_id,
+                        show_title=show_title,
+                        plex_id=plex_id,
+                        tvdb_id=tvdb_id,
+                        tmdb_id=tmdb_id,
+                        imdb_id=imdb_id,
+                        guid=guid
                     )
                 )
-                existing = result.first()
-                
-                if existing:
-                    logger.info(f"User {user_id} already follows {show_name}")
-                    return True
-                
-                # Add new follower
-                stmt = self.follows.insert().values(
-                    user_id=user_id,
-                    show_id=show_id,
-                    show_title=show_name,
-                    plex_id=plex_id
-                )
-                await session.execute(stmt)
                 await session.commit()
-                logger.info(f"Successfully added follower {user_id} for show: {show_name}")
-                return True
+                logger.info(f"Added follower {user_id} for show {show_title}")
         except Exception as e:
             logger.error(f"Error adding follower: {str(e)}")
-            return False
+            raise
 
     async def remove_follower(self, user_id: int, show_title: str) -> bool:
         """Remove a user as a follower of a show."""
@@ -300,4 +294,71 @@ class Database:
                 
         except Exception as e:
             logger.error(f"Error getting user follows: {str(e)}")
-            return [] 
+            return []
+
+    async def get_show_followers_by_guid(self, guid: str) -> List[int]:
+        """Get all users following a show by its Plex GUID."""
+        try:
+            logger.info(f"Looking for followers of show with GUID: {guid}")
+            session = await self.async_session()
+            async with session as session:
+                # Parse the GUID to get source and ID
+                parsed = GUIDParser.parse_guid(guid)
+                if not parsed:
+                    logger.warning(f"Invalid GUID format: {guid}")
+                    return []
+                    
+                source, id = parsed
+                
+                # Build query based on GUID source
+                query = select(self.follows.c.user_id)
+                
+                if source == 'tvdb':
+                    query = query.where(self.follows.c.tvdb_id == int(id))
+                elif source == 'tmdb':
+                    query = query.where(self.follows.c.tmdb_id == int(id))
+                elif source == 'imdb':
+                    query = query.where(self.follows.c.imdb_id == id)
+                else:
+                    # For other sources or if parsing failed, try exact GUID match
+                    query = query.where(self.follows.c.guid == guid)
+                
+                result = await session.execute(query)
+                followers = result.scalars().all()
+                logger.info(f"Found {len(followers)} followers for show with GUID: {guid}")
+                return followers
+        except Exception as e:
+            logger.error(f"Error getting show followers by GUID: {str(e)}")
+            return []
+
+    async def update_show_guids(self, show_title: str, plex_id: Optional[str] = None,
+                              tvdb_id: Optional[int] = None, tmdb_id: Optional[int] = None,
+                              imdb_id: Optional[str] = None, guid: Optional[str] = None):
+        """Update GUID information for a show."""
+        try:
+            session = await self.async_session()
+            async with session as session:
+                # Build update values
+                update_values = {}
+                if plex_id is not None:
+                    update_values['plex_id'] = plex_id
+                if tvdb_id is not None:
+                    update_values['tvdb_id'] = tvdb_id
+                if tmdb_id is not None:
+                    update_values['tmdb_id'] = tmdb_id
+                if imdb_id is not None:
+                    update_values['imdb_id'] = imdb_id
+                if guid is not None:
+                    update_values['guid'] = guid
+                
+                if update_values:
+                    await session.execute(
+                        self.follows.update()
+                        .where(self.follows.c.show_title == show_title)
+                        .values(**update_values)
+                    )
+                    await session.commit()
+                    logger.info(f"Updated GUID information for show: {show_title}")
+        except Exception as e:
+            logger.error(f"Error updating show GUIDs: {str(e)}")
+            raise 

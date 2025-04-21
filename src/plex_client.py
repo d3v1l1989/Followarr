@@ -5,6 +5,7 @@ from plexapi.video import Show, Episode
 import aiohttp
 import asyncio
 from datetime import datetime, timedelta
+from src.guid_parser import GUIDParser
 
 logger = logging.getLogger(__name__)
 
@@ -65,14 +66,76 @@ class PlexClient:
             Optional[int]: TVDB ID if found, None otherwise
         """
         try:
-            # Try to get the TVDB ID from the show's external IDs
+            # Try to get the TVDB ID from the show's GUIDs
             for guid in show.guids:
-                if 'tvdb' in guid.id.lower():
-                    # Extract the ID from the GUID (format: tvdb://123456)
-                    return int(guid.id.split('//')[-1])
+                tvdb_id = GUIDParser.get_tvdb_id(guid.id)
+                if tvdb_id:
+                    return tvdb_id
             return None
         except Exception as e:
             logger.error(f"Error getting TVDB ID for show {show.title}: {str(e)}")
+            return None
+    
+    def _get_tmdb_id(self, show: Show) -> Optional[int]:
+        """
+        Extract TMDB ID from a Plex show object.
+        
+        Args:
+            show (Show): Plex show object
+            
+        Returns:
+            Optional[int]: TMDB ID if found, None otherwise
+        """
+        try:
+            # Try to get the TMDB ID from the show's GUIDs
+            for guid in show.guids:
+                tmdb_id = GUIDParser.get_tmdb_id(guid.id)
+                if tmdb_id:
+                    return tmdb_id
+            return None
+        except Exception as e:
+            logger.error(f"Error getting TMDB ID for show {show.title}: {str(e)}")
+            return None
+    
+    def _get_imdb_id(self, show: Show) -> Optional[str]:
+        """
+        Extract IMDb ID from a Plex show object.
+        
+        Args:
+            show (Show): Plex show object
+            
+        Returns:
+            Optional[str]: IMDb ID if found, None otherwise
+        """
+        try:
+            # Try to get the IMDb ID from the show's GUIDs
+            for guid in show.guids:
+                imdb_id = GUIDParser.get_imdb_id(guid.id)
+                if imdb_id:
+                    return imdb_id
+            return None
+        except Exception as e:
+            logger.error(f"Error getting IMDb ID for show {show.title}: {str(e)}")
+            return None
+    
+    def _get_primary_guid(self, show: Show) -> Optional[str]:
+        """
+        Get the primary GUID for a show.
+        
+        Args:
+            show (Show): Plex show object
+            
+        Returns:
+            Optional[str]: Primary GUID if found, None otherwise
+        """
+        try:
+            # Return the first valid GUID
+            for guid in show.guids:
+                if GUIDParser.parse_guid(guid.id):
+                    return guid.id
+            return None
+        except Exception as e:
+            logger.error(f"Error getting primary GUID for show {show.title}: {str(e)}")
             return None
     
     async def get_show_by_tvdb_id(self, tvdb_id: int) -> Optional[Show]:
