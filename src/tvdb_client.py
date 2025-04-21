@@ -174,8 +174,9 @@ class TVDBClient:
             # Get show details with translations
             show_details = await self.get_show_details(show_data.get('id'))
             if show_details:
-                # Update the show name with English title if available
-                show_data['name'] = show_details.get('english_name', show_data.get('name'))
+                # Update the show data with English content
+                show_data['name'] = show_details.get('english_name', show_details.get('name'))
+                show_data['overview'] = show_details.get('overview')
                 logger.info(f"Using English title: {show_data['name']}")
             
             # Log poster/image information
