@@ -307,7 +307,8 @@ class FollowarrBot(commands.Bot):
                     embed.add_field(name="Overview", value=overview, inline=False)
                 
                 if show_details.get('status'):
-                    embed.add_field(name="Status", value=show_details['status'], inline=True)
+                    status = show_details['status'].get('name', 'Unknown') if isinstance(show_details['status'], dict) else str(show_details['status'])
+                    embed.add_field(name="Status", value=status, inline=True)
                 
                 if show_details.get('image'):
                     try:
