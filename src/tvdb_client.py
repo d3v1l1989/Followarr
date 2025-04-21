@@ -262,10 +262,14 @@ class TVDBClient:
             if english_title == show.get('name') and show.get('aliases'):
                 for alias in show['aliases']:
                     # Check if alias is in English (simple check for non-ASCII characters)
-                    if all(ord(c) < 128 for c in alias):
-                        english_title = alias
-                        logger.info(f"Found English title from aliases: {english_title}")
-                        break
+                    try:
+                        if all(ord(c) < 128 for c in str(alias)):
+                            english_title = alias
+                            logger.info(f"Found English title from aliases: {english_title}")
+                            break
+                    except (TypeError, ValueError):
+                        # Skip if we can't process this alias
+                        continue
             
             return {
                 'id': show.get('id'),

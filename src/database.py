@@ -135,16 +135,21 @@ class Database:
             session.close()
 
     async def is_user_subscribed(self, user_id: str, show_id: int) -> bool:
-        """Check if a user is subscribed to a show"""
-        async with self.async_session() as session:
-            query = select(self.follows).where(
-                and_(
-                    self.follows.c.user_id == int(user_id),
-                    self.follows.c.show_id == show_id
+        """Check if a user is subscribed to a show."""
+        session = await self.async_session()
+        try:
+            async with session:
+                result = await session.execute(
+                    select(self.follows)
+                    .where(and_(
+                        self.follows.c.user_id == user_id,
+                        self.follows.c.show_id == show_id
+                    ))
                 )
-            )
-            result = await session.execute(query)
-            return result.first() is not None
+                return bool(result.first())
+        except Exception as e:
+            logger.error(f"Error checking subscription: {str(e)}")
+            return False
 
     def get_users_by_show(self, show_name: str) -> List[Dict]:
         """Get all users who follow a specific show."""
