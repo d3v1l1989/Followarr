@@ -276,6 +276,11 @@ class TVDBClient:
                         # Skip if we can't process this alias
                         continue
             
+            # Ensure english_title is a string, not a dictionary
+            if isinstance(english_title, dict):
+                english_title = english_title.get('name', show.get('name'))
+                logger.info(f"Extracted name from dictionary: {english_title}")
+            
             return {
                 'id': show.get('id'),
                 'name': show.get('name'),
