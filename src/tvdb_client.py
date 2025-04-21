@@ -213,15 +213,15 @@ class TVDBClient:
             if '-' in clean_show_id:
                 clean_show_id = clean_show_id.split('-')[-1]
             
-            # First try to get basic show info with translations
-            basic_data = await self._make_request("GET", f"series/{clean_show_id}?include=translations")
+            # First try to get basic show info with translations and aliases
+            basic_data = await self._make_request("GET", f"series/{clean_show_id}?include=translations,aliases")
             if not basic_data or not basic_data.get('data'):
                 logger.warning(f"Could not get basic show info for ID: {clean_show_id}")
                 return None
             
             # Then try to get extended info
             try:
-                extended_data = await self._make_request("GET", f"series/{clean_show_id}/extended?include=translations")
+                extended_data = await self._make_request("GET", f"series/{clean_show_id}/extended?include=translations,aliases")
                 if not extended_data or not extended_data.get('data'):
                     logger.warning(f"Could not get extended show info for ID: {clean_show_id}")
                     # Use basic data if extended data is not available
@@ -247,13 +247,24 @@ class TVDBClient:
             if image_url and not image_url.startswith('http'):
                 image_url = f"https://artworks.thetvdb.com{image_url}"
             
-            # Get English title from translations if available
+            # Get English title from translations and aliases
             english_title = show.get('name')
+            
+            # First check translations
             if show.get('translations'):
                 for translation in show['translations']:
                     if translation.get('language') == 'eng':
                         english_title = translation.get('name', english_title)
-                        logger.info(f"Found English title: {english_title}")
+                        logger.info(f"Found English title from translations: {english_title}")
+                        break
+            
+            # Then check aliases if we don't have an English title from translations
+            if english_title == show.get('name') and show.get('aliases'):
+                for alias in show['aliases']:
+                    # Check if alias is in English (simple check for non-ASCII characters)
+                    if all(ord(c) < 128 for c in alias):
+                        english_title = alias
+                        logger.info(f"Found English title from aliases: {english_title}")
                         break
             
             return {
