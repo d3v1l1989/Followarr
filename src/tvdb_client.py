@@ -269,9 +269,12 @@ class TVDBClient:
                     # Check if alias is in English (simple check for non-ASCII characters)
                     try:
                         if all(ord(c) < 128 for c in str(alias_name)):
-                            english_title = alias_name
-                            logger.info(f"Found English title from aliases: {english_title}")
-                            break
+                            # Check if this is actually an English title (not pinyin or other romanization)
+                            if not any(char.isdigit() for char in str(alias_name)):  # Skip if contains numbers
+                                if not any(char in str(alias_name).lower() for char in ['xian', 'zhong', 'ying', 'xiong']):  # Skip common pinyin words
+                                    english_title = alias_name
+                                    logger.info(f"Found English title from aliases: {english_title}")
+                                    break
                     except (TypeError, ValueError):
                         # Skip if we can't process this alias
                         continue
