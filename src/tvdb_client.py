@@ -261,10 +261,15 @@ class TVDBClient:
             # Then check aliases if we don't have an English title from translations
             if english_title == show.get('name') and show.get('aliases'):
                 for alias in show['aliases']:
+                    # Handle both string and dictionary aliases
+                    alias_name = alias.get('name') if isinstance(alias, dict) else alias
+                    if not alias_name:
+                        continue
+                        
                     # Check if alias is in English (simple check for non-ASCII characters)
                     try:
-                        if all(ord(c) < 128 for c in str(alias)):
-                            english_title = alias
+                        if all(ord(c) < 128 for c in str(alias_name)):
+                            english_title = alias_name
                             logger.info(f"Found English title from aliases: {english_title}")
                             break
                     except (TypeError, ValueError):
