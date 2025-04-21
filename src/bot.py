@@ -276,17 +276,20 @@ class FollowarrBot(commands.Bot):
                     await interaction.followup.send("Failed to unfollow the show. Please try again later.")
                     return
                 
-                # Get show details for the embed
+                # Get show details to ensure we have the English title
                 show_details = await self.tvdb_client.get_show_details(show_to_unfollow['show_id'])
                 if not show_details:
                     logger.warning(f"Could not get show details for {show_to_unfollow['show_title']}")
                     await interaction.followup.send(f"Successfully unfollowed {show_to_unfollow['show_title']}!")
                     return
-                
+
+                # Use English title if available
+                show_title = show_details.get('english_name', show_to_unfollow['show_title'])
+
                 # Create unfollow confirmation embed
                 embed = discord.Embed(
                     title="Show Unfollowed",
-                    description=f"You are no longer following {show_to_unfollow['show_title']}",
+                    description=f"You are no longer following {show_title}",
                     color=discord.Color.red()
                 )
                 
@@ -301,13 +304,13 @@ class FollowarrBot(commands.Bot):
                     try:
                         # Ensure the URL is valid
                         if show_details['image'].startswith('http'):
-                            logger.info(f"Setting thumbnail for {show_to_unfollow['show_title']} with URL: {show_details['image']}")
+                            logger.info(f"Setting thumbnail for {show_title} with URL: {show_details['image']}")
                             embed.set_thumbnail(url=show_details['image'])
-                            logger.info(f"Successfully set thumbnail for {show_to_unfollow['show_title']}")
+                            logger.info(f"Successfully set thumbnail for {show_title}")
                         else:
-                            logger.warning(f"Invalid image URL for {show_to_unfollow['show_title']}: {show_details['image']}")
+                            logger.warning(f"Invalid image URL for {show_title}: {show_details['image']}")
                     except Exception as e:
-                        logger.error(f"Error setting thumbnail for {show_to_unfollow['show_title']}: {str(e)}")
+                        logger.error(f"Error setting thumbnail for {show_title}: {str(e)}")
                         logger.error(traceback.format_exc())
                 
                 embed.set_footer(text="Data provided by TVDB")

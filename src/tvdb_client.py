@@ -164,6 +164,12 @@ class TVDBClient:
             show_data = data['data'][0]
             logger.info(f"Found show: {show_data.get('name')} (ID: {show_data.get('id')})")
             
+            # Get show details with translations
+            show_details = await self.get_show_details(show_data.get('id'))
+            if show_details:
+                # Update the show name with English title if available
+                show_data['name'] = show_details.get('english_name', show_data.get('name'))
+            
             # Log poster/image information
             if 'image' in show_data:
                 logger.info(f"Show has image path: {show_data['image']}")
