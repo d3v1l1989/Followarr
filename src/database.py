@@ -207,7 +207,7 @@ class Database:
             logger.error(f"Error getting show followers by Plex ID: {str(e)}")
             return []
 
-    async def add_follower(self, user_id: int, show_title: str, plex_id: Optional[str] = None, 
+    async def add_follower(self, user_id: int, show_title: str, show_id: int, plex_id: Optional[str] = None, 
                           tvdb_id: Optional[int] = None, tmdb_id: Optional[int] = None, 
                           imdb_id: Optional[str] = None, guid: Optional[str] = None):
         """Add a new show follower with GUID information."""
@@ -218,6 +218,7 @@ class Database:
                     self.follows.insert().values(
                         user_id=user_id,
                         show_title=show_title,
+                        show_id=show_id,
                         plex_id=plex_id,
                         tvdb_id=tvdb_id,
                         tmdb_id=tmdb_id,

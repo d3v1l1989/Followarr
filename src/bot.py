@@ -132,7 +132,16 @@ class FollowarrBot(commands.Bot):
                 logger.info(f"Found show: {show.name} (ID: {show.id})")
                 
                 # Add the show to the user's follows without looking up Plex ID
-                await self.db.add_follower(interaction.user.id, show.id, show.name, None)
+                await self.db.add_follower(
+                    user_id=interaction.user.id,
+                    show_title=show.name,
+                    show_id=show.id,
+                    plex_id=None,
+                    tvdb_id=show.id,
+                    tmdb_id=None,
+                    imdb_id=None,
+                    guid=None
+                )
                 
                 # Create follow confirmation embed
                 embed = discord.Embed(
