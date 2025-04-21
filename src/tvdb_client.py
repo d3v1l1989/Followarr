@@ -220,7 +220,7 @@ class TVDBClient:
                 logger.warning(f"Could not get basic show info for ID: {clean_show_id}")
                 return None
             
-            # Then try to get extended info
+            # Then try to get extended info with English translations
             try:
                 extended_data = await self._make_request("GET", f"series/{clean_show_id}/extended?include=translations,aliases")
                 if not extended_data or not extended_data.get('data'):
@@ -281,6 +281,16 @@ class TVDBClient:
                     except (TypeError, ValueError):
                         # Skip if we can't process this alias
                         continue
+            
+            # If we still don't have an English overview, try to get it from the English translation endpoint
+            if not english_overview:
+                try:
+                    translation_data = await self._make_request("GET", f"series/{clean_show_id}/translations/eng")
+                    if translation_data and translation_data.get('data'):
+                        english_overview = translation_data['data'].get('overview')
+                        logger.info("Found English overview from translations endpoint")
+                except Exception as e:
+                    logger.warning(f"Error getting English translation: {str(e)}")
             
             # Use English title if found, otherwise fall back to original
             final_title = english_title if english_title else show.get('name')
