@@ -247,19 +247,21 @@ class TVDBClient:
             if image_url and not image_url.startswith('http'):
                 image_url = f"https://artworks.thetvdb.com{image_url}"
             
-            # Get English title from translations and aliases
-            english_title = show.get('name')
+            # Get English title and overview from translations
+            english_title = None
+            english_overview = None
             
             # First check translations
             if show.get('translations'):
                 for translation in show['translations']:
                     if translation.get('language') == 'eng':
-                        english_title = translation.get('name', english_title)
+                        english_title = translation.get('name')
+                        english_overview = translation.get('overview')
                         logger.info(f"Found English title from translations: {english_title}")
                         break
             
-            # Then check aliases if we don't have an English title from translations
-            if english_title == show.get('name') and show.get('aliases'):
+            # If no English translation found, try aliases
+            if not english_title and show.get('aliases'):
                 for alias in show['aliases']:
                     # Handle both string and dictionary aliases
                     alias_name = alias.get('name') if isinstance(alias, dict) else alias
@@ -279,16 +281,15 @@ class TVDBClient:
                         # Skip if we can't process this alias
                         continue
             
-            # Ensure english_title is a string, not a dictionary
-            if isinstance(english_title, dict):
-                english_title = english_title.get('name', show.get('name'))
-                logger.info(f"Extracted name from dictionary: {english_title}")
+            # Use English title if found, otherwise fall back to original
+            final_title = english_title if english_title else show.get('name')
+            final_overview = english_overview if english_overview else show.get('overview')
             
             return {
                 'id': show.get('id'),
-                'name': show.get('name'),
-                'english_name': english_title,
-                'overview': show.get('overview'),
+                'name': final_title,
+                'english_name': final_title,  # Always use English title if available
+                'overview': final_overview,
                 'status': show.get('status'),
                 'first_aired': show.get('firstAired'),
                 'network': show.get('network'),
@@ -393,14 +394,20 @@ class TVDBClient:
                     for episode in page_episodes:
                         # Get English translation if available
                         if "translations" in episode:
+                            english_name = None
+                            english_overview = None
+                            
                             for translation in episode["translations"]:
                                 if translation.get("language") == "eng":
-                                    # Prefer English title and overview
-                                    if translation.get("name"):
-                                        episode["name"] = translation["name"]
-                                    if translation.get("overview"):
-                                        episode["overview"] = translation["overview"]
+                                    english_name = translation.get("name")
+                                    english_overview = translation.get("overview")
                                     break
+                            
+                            # Use English translations if available
+                            if english_name:
+                                episode["name"] = english_name
+                            if english_overview:
+                                episode["overview"] = english_overview
 
                     episodes.extend(page_episodes)
                     
