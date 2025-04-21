@@ -17,6 +17,7 @@ import calendar
 from collections import defaultdict
 from typing import Dict, Any
 from src.tvdb_client import TVShow
+from src.guid_parser import GUIDParser
 
 # Load env vars and setup logging
 load_dotenv()
@@ -621,14 +622,22 @@ class FollowarrBot(commands.Bot):
                 
             logger.info(f"Processing new episode for show: {show_title} (RatingKey: {show_rating_key}, GUID: {show_guid})")
             
-            # First try to find followers using Plex's unique identifiers
+            # Try to find followers using different methods in order of reliability
             followers = []
-            if show_rating_key:
+            
+            # 1. Try using GUID first (most reliable)
+            if show_guid:
+                followers = await self.db.get_show_followers_by_guid(show_guid)
+                if followers:
+                    logger.info(f"Found {len(followers)} followers using GUID: {show_guid}")
+            
+            # 2. Try using Plex rating key
+            if not followers and show_rating_key:
                 followers = await self.db.get_show_followers_by_plex_id(show_rating_key)
                 if followers:
                     logger.info(f"Found {len(followers)} followers using Plex RatingKey: {show_rating_key}")
             
-            # If no followers found by Plex ID, try title variations
+            # 3. Try title variations as fallback
             if not followers:
                 # Try different variations of the show title to find followers
                 title_variations = [
@@ -652,6 +661,24 @@ class FollowarrBot(commands.Bot):
                     if temp_followers:
                         followers = temp_followers
                         logger.info(f"Found {len(followers)} followers using title: {title}")
+                        
+                        # Update the show's GUID information for future matches
+                        if show_guid:
+                            parsed = GUIDParser.parse_guid(show_guid)
+                            if parsed:
+                                source, id = parsed
+                                update_data = {'guid': show_guid}
+                                if source == 'tvdb':
+                                    update_data['tvdb_id'] = int(id)
+                                elif source == 'tmdb':
+                                    update_data['tmdb_id'] = int(id)
+                                elif source == 'imdb':
+                                    update_data['imdb_id'] = id
+                                
+                                if show_rating_key:
+                                    update_data['plex_id'] = show_rating_key
+                                
+                                await self.db.update_show_guids(title, **update_data)
                         break
             
             if not followers:
@@ -667,11 +694,21 @@ class FollowarrBot(commands.Bot):
             
             # Get show details from TVDB
             show_details = None
-            for title in title_variations:
-                show_details = await self.tvdb_client.search_show(title)
-                if show_details:
-                    logger.info(f"Found show details for {title} on TVDB")
-                    break
+            if show_guid:
+                # Try to get TVDB ID from GUID
+                tvdb_id = GUIDParser.get_tvdb_id(show_guid)
+                if tvdb_id:
+                    show_details = await self.tvdb_client.get_show(tvdb_id)
+                    if show_details:
+                        logger.info(f"Found show details using TVDB ID from GUID: {tvdb_id}")
+            
+            # If no show details found via GUID, try title search
+            if not show_details:
+                for title in title_variations:
+                    show_details = await self.tvdb_client.search_show(title)
+                    if show_details:
+                        logger.info(f"Found show details for {title} on TVDB")
+                        break
             
             # Get episode details from TVDB
             episode_details = None
