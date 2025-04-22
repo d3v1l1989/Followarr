@@ -167,8 +167,17 @@ class TVDBClient:
                 logger.warning(f"No results found for query: {query}")
                 return None
                 
-            # Return the first result
-            show_data = data['data'][0]
+            # Filter out list results and get the first non-list result
+            show_data = None
+            for result in data['data']:
+                if result.get('type') != 'list':
+                    show_data = result
+                    break
+                    
+            if not show_data:
+                logger.warning(f"No non-list results found for query: {query}")
+                return None
+                
             logger.info(f"Found show: {show_data.get('name')} (ID: {show_data.get('id')})")
             
             # Get show details with translations
